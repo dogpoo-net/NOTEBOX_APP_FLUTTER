@@ -18,3 +18,6 @@ Flutter 3.47.9 / Dart 3.13.7. 클라우드에서 `bash scripts/setup-cloud.sh` �
 
 검증: `flutter analyze --no-pub`, `flutter test --no-pub`, `flutter build web --no-pub`.
 기존 체크아웃을 사용하고 사용자가 요청하지 않은 worktree는 만들지 않습니다. Android/iOS 실기기 빌드는 아직 검증하지 않았습니다.
+
+## Material 3 테마 업데이트
+Flutter 공식 Material 패키지를 사용합니다. 인디고 기반 의미 색상과 표면 단계, 24px 카드 곡률 및 테두리로 영역을 구분합니다. 상단 테마 메뉴에서 시스템 설정/라이트/다크를 선택하며 초기값은 시스템 설정입니다. 선택은 현재 세션에만 유지됩니다. 메모 및 초안은 테마 전환 시 보존됩니다. 테마 설정 영속화는 로컬 저장 단계에 포함합니다.

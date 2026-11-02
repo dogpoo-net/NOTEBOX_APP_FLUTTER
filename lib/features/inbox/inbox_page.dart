@@ -8,7 +8,13 @@ class Note {
 }
 
 class InboxPage extends StatefulWidget {
-  const InboxPage({super.key});
+  const InboxPage({
+    super.key,
+    required this.themeMode,
+    required this.onThemeChanged,
+  });
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeChanged;
   @override
   State<InboxPage> createState() => _InboxPageState();
 }
@@ -72,12 +78,14 @@ class _InboxPageState extends State<InboxPage> {
     _focus.requestFocus();
   }
 
+  ColorScheme get colors => Theme.of(context).colorScheme;
+
   Widget _composer() => Card(
-    color: Colors.white,
+    color: colors.surfaceContainerLow,
     elevation: 0,
     margin: EdgeInsets.zero,
     child: Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -99,6 +107,7 @@ class _InboxPageState extends State<InboxPage> {
             maxLines: 8,
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
+              filled: false,
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
@@ -112,9 +121,9 @@ class _InboxPageState extends State<InboxPage> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Text(
+              Text(
                 'Markdown으로 자유롭게',
-                style: TextStyle(color: Colors.black54, fontSize: 12),
+                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
               ),
               FilledButton.icon(
                 onPressed: _draft.text.trim().isEmpty ? null : _save,
@@ -139,10 +148,7 @@ class _InboxPageState extends State<InboxPage> {
           children: [
             Text('모아둔 생각', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(width: 8),
-            Text(
-              '${_notes.length}',
-              style: const TextStyle(color: Color(0xFF426653)),
-            ),
+            Text('${_notes.length}', style: TextStyle(color: colors.primary)),
           ],
         ),
         const SizedBox(height: 16),
@@ -160,11 +166,7 @@ class _InboxPageState extends State<InboxPage> {
             padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 12),
             child: Column(
               children: [
-                const Icon(
-                  Icons.inbox_outlined,
-                  size: 40,
-                  color: Color(0xFF718371),
-                ),
+                Icon(Icons.inbox_outlined, size: 40, color: colors.primary),
                 const SizedBox(height: 16),
                 Text(
                   _notes.isEmpty ? '작은 생각이 지식의 시작이에요' : '일치하는 메모가 없어요',
@@ -176,7 +178,7 @@ class _InboxPageState extends State<InboxPage> {
                       ? '읽다가 떠오른 질문, 잊고 싶지 않은 문장.\n먼저 담아두고, 정리는 나중에 해요.'
                       : '다른 단어로 찾아보세요.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.black54, height: 1.7),
+                  style: TextStyle(color: colors.onSurfaceVariant, height: 1.7),
                 ),
               ],
             ),
@@ -184,7 +186,7 @@ class _InboxPageState extends State<InboxPage> {
         for (final note in visible)
           Card(
             elevation: 0,
-            color: Colors.white,
+            color: colors.surfaceContainerLow,
             margin: const EdgeInsets.only(bottom: 10),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(
@@ -198,7 +200,7 @@ class _InboxPageState extends State<InboxPage> {
               ),
               subtitle: Text(
                 '${note.createdAt.month}월 ${note.createdAt.day}일 · 빠른 메모',
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
+                style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
               ),
               trailing: const Icon(Icons.chevron_right, size: 20),
               onTap: () => _open(note),
@@ -211,8 +213,51 @@ class _InboxPageState extends State<InboxPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      backgroundColor: const Color(0xFFF7F5EF),
-      title: const Text(
+      leading: Padding(
+        padding: const EdgeInsets.all(10),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            Icons.grid_view_rounded,
+            color: colors.onPrimaryContainer,
+            size: 20,
+          ),
+        ),
+      ),
+      actions: [
+        PopupMenuButton<ThemeMode>(
+          tooltip: '테마 선택',
+          initialValue: widget.themeMode,
+          onSelected: widget.onThemeChanged,
+          icon: Icon(
+            Theme.of(context).brightness == Brightness.dark
+                ? Icons.dark_mode_outlined
+                : Icons.light_mode_outlined,
+          ),
+          itemBuilder: (_) => [
+            CheckedPopupMenuItem(
+              value: ThemeMode.system,
+              checked: widget.themeMode == ThemeMode.system,
+              child: const Text('시스템 설정'),
+            ),
+            CheckedPopupMenuItem(
+              value: ThemeMode.light,
+              checked: widget.themeMode == ThemeMode.light,
+              child: const Text('라이트'),
+            ),
+            CheckedPopupMenuItem(
+              value: ThemeMode.dark,
+              checked: widget.themeMode == ThemeMode.dark,
+              child: const Text('다크'),
+            ),
+          ],
+        ),
+        const SizedBox(width: 12),
+      ],
+      title: Text(
         'NOTEBOX',
         style: TextStyle(
           fontSize: 16,
@@ -231,12 +276,12 @@ class _InboxPageState extends State<InboxPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '생각을 담고, 연결의 시작으로',
-                  style: TextStyle(color: Color(0xFF426653), fontSize: 13),
+                Text(
+                  'MY WORKSPACE  /  INBOX',
+                  style: TextStyle(color: colors.primary, fontSize: 13),
                 ),
                 const SizedBox(height: 10),
-                const Text(
+                Text(
                   '나의 기록함',
                   style: TextStyle(
                     fontSize: 34,
@@ -245,9 +290,9 @@ class _InboxPageState extends State<InboxPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   '완벽하게 쓰지 않아도 괜찮아요.',
-                  style: TextStyle(color: Colors.black54),
+                  style: TextStyle(color: colors.onSurfaceVariant),
                 ),
                 const SizedBox(height: 24),
                 LayoutBuilder(
@@ -269,9 +314,12 @@ class _InboxPageState extends State<InboxPage> {
                         ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   '미리보기 단계 · 메모는 앱을 재시작하면 초기화됩니다.',
-                  style: TextStyle(color: Colors.black54, fontSize: 12),
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),

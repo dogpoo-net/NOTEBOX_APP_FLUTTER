@@ -3,6 +3,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notebox/main.dart';
 
 void main() {
+  testWidgets('theme switch retains draft and applies both palettes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.enterText(find.byType(TextField).first, '작성 중인 생각');
+    for (final entry in {
+      '다크': Brightness.dark,
+      '라이트': Brightness.light,
+    }.entries) {
+      await tester.tap(find.byTooltip('테마 선택'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.ancestor(
+          of: find.text(entry.key),
+          matching: find.byType(CheckedPopupMenuItem<ThemeMode>),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        Theme.of(tester.element(find.byType(Scaffold))).brightness,
+        entry.value,
+      );
+      expect(find.text('작성 중인 생각'), findsOneWidget);
+    }
+  });
   testWidgets('capture, search and edit preserve Markdown', (tester) async {
     await tester.pumpWidget(const MyApp());
     expect(

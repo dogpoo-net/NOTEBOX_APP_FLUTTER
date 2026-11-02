@@ -4,25 +4,75 @@ import 'features/inbox/inbox_page.dart';
 
 void main() => runApp(const MyApp());
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _mode = ThemeMode.system;
+
+  ThemeData _theme(Brightness brightness) {
+    final colors = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF536DFE),
+      brightness: brightness,
+    );
+    final border = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+      side: BorderSide(color: colors.outlineVariant),
+    );
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colors,
+      scaffoldBackgroundColor: colors.surface,
+      appBarTheme: AppBarTheme(
+        backgroundColor: colors.surface,
+        foregroundColor: colors.onSurface,
+        scrolledUnderElevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        elevation: 0,
+        color: colors.surfaceContainerLow,
+        shape: border,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: colors.surfaceContainerHighest,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: colors.primary, width: 2),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'NOTEBOX',
     debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      scaffoldBackgroundColor: const Color(0xFFF7F5EF),
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF426653),
-        surface: const Color(0xFFF7F5EF),
-      ),
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
-        filled: true,
-        fillColor: Colors.white,
-      ),
+    theme: _theme(Brightness.light),
+    darkTheme: _theme(Brightness.dark),
+    themeMode: _mode,
+    home: InboxPage(
+      themeMode: _mode,
+      onThemeChanged: (mode) => setState(() => _mode = mode),
     ),
-    home: const InboxPage(),
   );
 }
