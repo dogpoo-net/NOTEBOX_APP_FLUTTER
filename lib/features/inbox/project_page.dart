@@ -53,6 +53,7 @@ class _ProjectPageState extends State<ProjectPage> {
         ElementSource(
           '${project.name} · 문단 ${i + 1}',
           project.paragraphs[i].text,
+          isProject: true,
         ),
     ];
     final usedWords = project.paragraphs

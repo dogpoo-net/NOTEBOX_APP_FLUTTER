@@ -14,7 +14,8 @@ class ElementRecord {
 }
 
 class ElementSource {
-  ElementSource(this.label, this.text);
+  ElementSource(this.label, this.text, {this.isProject = false});
+  final bool isProject;
   final String label;
   final String text;
 }
@@ -65,6 +66,7 @@ void showElementMetadata(BuildContext context, String word) {
   final uses = <String, int>{};
   final together = <String, int>{};
   for (final source in elements.sources.values.expand((s) => s)) {
+    if (!source.isProject) continue;
     final hits = elements.matches(source.text);
     final count = hits.where((h) => h.word == word).length;
     if (count == 0) continue;
@@ -79,7 +81,10 @@ void showElementMetadata(BuildContext context, String word) {
   showDialog<void>(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text(word),
+      title: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: elementBadge(context, word),
+      ),
       content: SizedBox(
         width: 400,
         child: SingleChildScrollView(
@@ -87,30 +92,46 @@ void showElementMetadata(BuildContext context, String word) {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                '생성: ${element.createdAt.toLocal().toString().split('.').first}',
-              ),
-              const SizedBox(height: 8),
+              Text('생성일', style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: 6),
+              Text(element.createdAt.toLocal().toString().split('.').first),
+              const Divider(height: 28),
+              Text('프로젝트 사용', style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: 6),
               Text(
                 '사용 ${uses.values.fold<int>(0, (a, b) => a + b)}회 · ${uses.length}개 위치',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              const SizedBox(height: 16),
-              const Text('사용 위치'),
-              if (uses.isEmpty) const Text('아직 사용하지 않았어요.'),
+              const SizedBox(height: 4),
+              Text('독립 문단 제외', style: Theme.of(context).textTheme.bodySmall),
+              const Divider(height: 28),
+              Text('사용 위치', style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: 8),
+              if (uses.isEmpty) const Text('사용한 프로젝트가 없어요.'),
               for (final use in uses.entries)
                 Padding(
-                  padding: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: Text('${use.key} · ${use.value}회'),
                 ),
-              const SizedBox(height: 16),
-              const Text('함께 쓰인 원소'),
+              const Divider(height: 28),
+              Text('함께 쓰인 원소', style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: 8),
+              if (ranked.isEmpty) const Text('함께 쓰인 원소가 없어요.'),
               for (final entry in ranked)
-                Text('${entry.key} · ${entry.value}개 문단'),
-              const SizedBox(height: 16),
-              const Text(
-                '현재 저장된 문단·프로젝트 원문에서 정확히 일치하는 표현을 집계합니다. 겹치는 표현은 긴 원소를 우선합니다.',
-                style: TextStyle(fontSize: 12),
-              ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      elementBadge(context, entry.key),
+                      Text(
+                        '${entry.value}개 프로젝트 문단',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
@@ -165,6 +186,9 @@ class _ElementTextState extends State<ElementText> {
           style: TextStyle(
             color: wordColor(context, hit.word),
             decoration: TextDecoration.underline,
+            decorationStyle: TextDecorationStyle.dotted,
+            decorationColor: wordBackgroundColor(context, hit.word),
+            decorationThickness: 2,
           ),
         ),
       );

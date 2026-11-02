@@ -6,6 +6,24 @@ final _random = Random();
 final _wordHues = <String, double>{};
 const starterWords = ['관찰', '질문', '연결', '기억', '성장'];
 
+Color wordBackgroundColor(BuildContext context, String word) {
+  final hue = _wordHues.putIfAbsent(word, () => _random.nextDouble() * 360);
+  return HSLColor.fromAHSL(
+    1,
+    hue,
+    .55,
+    Theme.of(context).brightness == Brightness.dark ? .25 : .9,
+  ).toColor();
+}
+
+Widget elementBadge(BuildContext context, String word) => Chip(
+  label: Text(word, style: TextStyle(color: wordColor(context, word))),
+  backgroundColor: wordBackgroundColor(context, word),
+  shape: const StadiumBorder(),
+  side: BorderSide.none,
+  visualDensity: VisualDensity.compact,
+);
+
 Color wordColor(BuildContext context, String word) {
   final hue = _wordHues.putIfAbsent(word, () => _random.nextDouble() * 360);
   return HSLColor.fromAHSL(

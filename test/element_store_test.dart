@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notebox/features/inbox/element_store.dart';
 import 'package:notebox/features/inbox/paragraph_editor.dart';
 import 'package:notebox/features/inbox/project_page.dart';
+import 'package:notebox/features/inbox/word_badge.dart';
 
 void main() {
   setUp(elements.clear);
@@ -25,6 +26,9 @@ void main() {
   ) async {
     elements.add('작은 생각');
     elements.add('다른 원소');
+    elements.sources['standalone'] = [
+      ElementSource('독립 문단', '작은 생각 작은 생각 다른 원소'),
+    ];
     final project = WritingProject(
       [const Paragraph('작은 생각', ParagraphRole.body)],
       [],
@@ -44,10 +48,27 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('사용 1회 · 1개 위치'), findsOneWidget);
     expect(find.text('시험 · 문단 1 · 1회'), findsOneWidget);
+    expect(find.text('독립 문단 · 2회'), findsNothing);
+    expect(find.text('함께 쓰인 원소가 없어요.'), findsOneWidget);
+    expect(find.byType(Divider), findsNWidgets(3));
     await tester.tap(find.text('닫기'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('미리보기'));
     await tester.pumpAndSettle();
+    final rich = tester.widget<Text>(
+      find.descendant(
+        of: find.byType(ElementText),
+        matching: find.byType(Text),
+      ),
+    );
+    final span = (rich.textSpan! as TextSpan).children!
+        .whereType<TextSpan>()
+        .firstWhere((s) => s.recognizer != null);
+    expect(span.style!.decorationStyle, TextDecorationStyle.dotted);
+    expect(
+      span.style!.decorationColor,
+      wordBackgroundColor(tester.element(find.byType(ElementText)), '작은 생각'),
+    );
     await tester.tapAt(
       tester.getTopLeft(find.text('작은 생각', findRichText: true)) +
           const Offset(20, 12),
