@@ -39,12 +39,14 @@ class _InboxPageState extends State<InboxPage> {
   final List<Note> _notes = [];
   String _query = '';
   bool _menuVisible = true;
+  bool _pendingImeSave = false;
   Note? _editing;
   String? _storageError;
   bool _restoreBlocked = false;
   @override
   void initState() {
     super.initState();
+    _draft.addListener(_imeUpdated);
     projectFolders.clear();
     elements.addListener(_elementDeleted);
     elements.onProjectChanged = _persist;
@@ -256,26 +258,50 @@ class _InboxPageState extends State<InboxPage> {
     super.dispose();
   }
 
+  void _imeUpdated() {
+    if (_pendingImeSave && _draft.value.composing.isCollapsed) {
+      _finishImeSave();
+    }
+  }
+
+  void _finishImeSave() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_pendingImeSave) return;
+      _pendingImeSave = false;
+      if (!_focus.hasFocus) return;
+      _draft.clearComposing();
+      _save();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
   KeyEventResult _quickMemoKey(FocusNode node, KeyEvent event) {
     final desktop =
         defaultTargetPlatform == TargetPlatform.windows ||
         defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.linux;
     if (!desktop ||
-        event is KeyUpEvent ||
         (event.logicalKey != LogicalKeyboardKey.enter &&
             event.logicalKey != LogicalKeyboardKey.numpadEnter)) {
       return KeyEventResult.ignored;
     }
-    final value = _draft.value;
-    if (value.composing.isValid && !value.composing.isCollapsed) {
+    if (event is KeyUpEvent) {
+      if (_pendingImeSave) _finishImeSave();
       return KeyEventResult.ignored;
     }
+    final value = _draft.value;
     final keyboard = HardwareKeyboard.instance;
     if (keyboard.isControlPressed || keyboard.isMetaPressed) {
       return KeyEventResult.ignored;
     }
     if (event is KeyRepeatEvent) return KeyEventResult.handled;
+    if (value.composing.isValid && !value.composing.isCollapsed) {
+      if (!keyboard.isShiftPressed && !keyboard.isAltPressed) {
+        _pendingImeSave = true;
+      }
+      // Let the IME commit first, then save its final editing value.
+      return KeyEventResult.ignored;
+    }
     if (keyboard.isShiftPressed || keyboard.isAltPressed) {
       final selection = value.selection;
       final start = selection.isValid ? selection.start : value.text.length;
@@ -293,6 +319,7 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   void _save() {
+    _pendingImeSave = false;
     if (_draft.text.trim().isEmpty) return;
     if (parseTaggedInput(_draft.text).text.isEmpty) {
       ScaffoldMessenger.of(context)
