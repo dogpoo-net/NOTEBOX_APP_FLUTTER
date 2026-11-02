@@ -35,6 +35,8 @@ void main() {
     await tester.tap(find.text('정보'));
     await tester.pumpAndSettle();
     expect(find.text('사용 2회 · 1개 위치'), findsOneWidget);
+    await tester.ensureVisible(find.text(' 두번째 기억을 담은 문장'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text(' 두번째 기억을 담은 문장'));
     await tester.pumpAndSettle();
     expect(find.byType(ProjectPage), findsOneWidget);

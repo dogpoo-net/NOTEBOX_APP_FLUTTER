@@ -50,6 +50,7 @@ class _InboxPageState extends State<InboxPage> {
     projectFolders.clear();
     elements.addListener(_elementDeleted);
     elements.onProjectChanged = _persist;
+    elements.onRenamed = _elementRenamed;
     try {
       final raw = widget.storage?.read();
       if (raw != null) {
@@ -60,6 +61,22 @@ class _InboxPageState extends State<InboxPage> {
     } catch (_) {
       _restoreBlocked = true;
       _storageError = '저장 데이터를 읽지 못했습니다. 원본을 보존합니다. JSON 백업으로 복원해주세요.';
+    }
+  }
+
+  void _elementRenamed(String oldText, String newText) {
+    for (final note in _notes) {
+      if (note.project == null &&
+          note.paragraphs == null &&
+          note.content == oldText) {
+        note.content = newText;
+      }
+      final words = note.project?.words;
+      if (words != null) {
+        for (var i = 0; i < words.length; i++) {
+          if (words[i] == oldText) words[i] = newText;
+        }
+      }
     }
   }
 
@@ -253,6 +270,7 @@ class _InboxPageState extends State<InboxPage> {
   void dispose() {
     elements.removeListener(_elementDeleted);
     elements.onProjectChanged = null;
+    elements.onRenamed = null;
     _draft.dispose();
     _focus.dispose();
     super.dispose();
@@ -601,14 +619,7 @@ class _InboxPageState extends State<InboxPage> {
                   onLongPress: () => showElementMetadata(context, word),
                   word: word,
                   onTap: () {
-                    final notes = _notes.where(
-                      (n) => n.paragraphs == null && n.content.trim() == word,
-                    );
-                    if (notes.isNotEmpty) {
-                      _open(notes.first);
-                    } else {
-                      showElementMetadata(context, word);
-                    }
+                    showElementMetadata(context, word);
                   },
                 ),
               )

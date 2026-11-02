@@ -50,7 +50,7 @@ void main() {
     expect(find.text('시험 · 문단 1 · 1회'), findsOneWidget);
     expect(find.text('독립 문단 · 2회'), findsNothing);
     expect(find.text('함께 쓰인 원소가 없어요.'), findsOneWidget);
-    expect(find.byType(Divider), findsNWidgets(3));
+    expect(find.byType(Divider), findsNWidgets(4));
     await tester.tap(find.text('닫기'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('미리보기'));

@@ -8,6 +8,11 @@ void ensureWordColor(String word) {
   _wordHues.putIfAbsent(word, () => _random.nextDouble() * 360);
 }
 
+void renameWordColor(String oldText, String newText) {
+  ensureWordColor(oldText);
+  _wordHues[newText] = _wordHues.remove(oldText)!;
+}
+
 const starterWords = ['관찰', '질문', '연결', '기억', '성장'];
 
 Color wordBackgroundColor(BuildContext context, String word) {

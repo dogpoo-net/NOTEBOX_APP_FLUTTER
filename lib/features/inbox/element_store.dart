@@ -20,7 +20,7 @@ class ElementRecord {
   final Set<String> tags = {};
   static int _next = 0;
   final String id;
-  final String text;
+  String text;
   final DateTime createdAt;
 }
 
@@ -41,6 +41,29 @@ class ElementSource {
 
 class ElementStore extends ChangeNotifier {
   Future<void> Function()? onProjectChanged;
+  void Function(String oldText, String newText)? onRenamed;
+  String? update(String oldText, String input) {
+    final parsed = parseTaggedInput(input);
+    if (parsed.text.isEmpty) return '원소 내용을 입력해주세요.';
+    final record = records[oldText];
+    if (record == null) return '이미 삭제된 원소입니다.';
+    if (parsed.text != oldText && records.containsKey(parsed.text)) {
+      return '같은 내용의 원소가 이미 있어요.';
+    }
+    records.remove(oldText);
+    record.text = parsed.text;
+    record.tags
+      ..clear()
+      ..addAll(parsed.tags);
+    records[parsed.text] = record;
+    if (oldText != parsed.text) {
+      renameWordColor(oldText, parsed.text);
+      onRenamed?.call(oldText, parsed.text);
+    }
+    notifyListeners();
+    return null;
+  }
+
   void indexProject(WritingProject project) {
     sources[project] = [
       for (var i = 0; i < project.paragraphs.length; i++)
@@ -105,26 +128,59 @@ class ElementStore extends ChangeNotifier {
 final elements = ElementStore();
 
 void showElementMetadata(BuildContext context, String word) {
-  final element = elements.records[word];
-  if (element == null) return;
-  final uses = <ElementSource, int>{};
-  final together = <String, int>{};
-  for (final source in elements.sources.values.expand((s) => s)) {
-    if (!source.isProject) continue;
-    final hits = elements.matches(source.text);
-    final count = hits.where((h) => h.word == word).length;
-    if (count == 0) continue;
-    uses[source] = count;
-    for (final other
-        in hits.map((h) => h.word).toSet().where((w) => w != word)) {
-      together.update(other, (v) => v + 1, ifAbsent: () => 1);
-    }
-  }
-  final ranked = together.entries.toList()
-    ..sort((a, b) => b.value.compareTo(a.value));
+  if (!elements.records.containsKey(word)) return;
   showDialog<void>(
     context: context,
-    builder: (context) => AlertDialog(
+    builder: (_) => _ElementMetadata(word: word),
+  );
+}
+
+class _ElementMetadata extends StatefulWidget {
+  const _ElementMetadata({required this.word});
+  final String word;
+  @override
+  State<_ElementMetadata> createState() => _ElementMetadataState();
+}
+
+class _ElementMetadataState extends State<_ElementMetadata> {
+  late final TextEditingController _editor;
+  String? _error;
+  @override
+  void initState() {
+    super.initState();
+    final record = elements.records[widget.word]!;
+    _editor = TextEditingController(
+      text: [record.text, ...record.tags.map((t) => '#$t')].join(' '),
+    );
+  }
+
+  @override
+  void dispose() {
+    _editor.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final word = widget.word;
+    final element = elements.records[word];
+    if (element == null) return const SizedBox.shrink();
+    final uses = <ElementSource, int>{};
+    final together = <String, int>{};
+    for (final source in elements.sources.values.expand((s) => s)) {
+      if (!source.isProject) continue;
+      final hits = elements.matches(source.text);
+      final count = hits.where((h) => h.word == word).length;
+      if (count == 0) continue;
+      uses[source] = count;
+      for (final other
+          in hits.map((h) => h.word).toSet().where((w) => w != word)) {
+        together.update(other, (v) => v + 1, ifAbsent: () => 1);
+      }
+    }
+    final ranked = together.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return AlertDialog(
       title: Align(
         alignment: AlignmentDirectional.centerStart,
         child: elementBadge(context, word),
@@ -136,6 +192,22 @@ void showElementMetadata(BuildContext context, String word) {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              TextField(
+                key: const ValueKey('element-editor'),
+                controller: _editor,
+                minLines: 3,
+                maxLines: 6,
+                keyboardType: TextInputType.multiline,
+                decoration: InputDecoration(
+                  labelText: '원소 내용',
+                  hintText: '원소 내용 #태그',
+                  errorText: _error,
+                ),
+                onChanged: (_) {
+                  if (_error != null) setState(() => _error = null);
+                },
+              ),
+              const Divider(height: 28),
               if (element.tags.isNotEmpty) ...[
                 Wrap(
                   spacing: 6,
@@ -223,6 +295,17 @@ void showElementMetadata(BuildContext context, String word) {
         ),
       ),
       actions: [
+        FilledButton(
+          onPressed: () {
+            final error = elements.update(word, _editor.text);
+            if (error != null) {
+              setState(() => _error = error);
+              return;
+            }
+            Navigator.pop(context);
+          },
+          child: const Text('저장'),
+        ),
         TextButton(
           onPressed: () async {
             final confirmed = await showDialog<bool>(
@@ -254,8 +337,8 @@ void showElementMetadata(BuildContext context, String word) {
           child: const Text('닫기'),
         ),
       ],
-    ),
-  );
+    );
+  }
 }
 
 class ElementText extends StatelessWidget {

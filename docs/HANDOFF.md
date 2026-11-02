@@ -86,3 +86,5 @@ Flutter 공식 Material 패키지를 사용합니다. 인디고 기반 의미 �
 원소 사용 위치: ElementSource에 project/paragraphIndex를 인덱싱(복원 시 재생성). 출현별 링크가 ProjectPage initialParagraph/initialOffset으로 이동해 원소 링크 autofocus 및 ensureVisible. 동명이 프로젝트/반복 출현 구분. WidgetSpan ElementLink로 키보드 포커스, 둥근 1px 테두리, 기존 점선 밑줄 유지. 기본 테마 dark. 폴더 만들기 버튼은 프로젝트 제목 옆 아이콘으로 축소.
 
 한글 폰트: Google Fonts 공식 NotoSansKR[wght].ttf 원본을 NotoSansKR-Variable.ttf로 번들. OFL 라이선스/출처/해시 동봉. main()에서 FontLoader 로딩 완료 후 runApp, ThemeData.fontFamily=NotoSansKR. 한글 11172자 및 현대 조합 자모 전체 cmap 검증.
+
+원소 편집: 메인 클릭은 메타데이터 모달. Stateful 모달 textarea + 저장, 닫으면 미저장 편집 폐기. ElementStore.update는 빈 내용/중복 검사 후 기존 레코드 ID/createdAt/색상 유지하며 tags 교체. onRenamed로 빠른 메모와 project.words 동기화 후 notifyListeners로 영속화. 프로젝트 및 독립 문단 원문은 보존(사용 통계는 수정된 원소 텍스트의 현재 출현으로 계산).

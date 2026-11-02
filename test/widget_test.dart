@@ -123,15 +123,15 @@ void main() {
     expect(find.text('# 생각\n연결하기'), findsOneWidget);
     await tester.ensureVisible(find.text('# 생각\n연결하기'));
     await tester.tap(find.text('# 생각\n연결하기'));
-    await tester.pump();
-    expect(
-      tester.widget<TextField>(find.byType(TextField).first).controller!.text,
-      '# 생각\n연결하기',
+    await tester.pumpAndSettle();
+    final editor = find.byKey(const ValueKey('element-editor'));
+    expect(tester.widget<TextField>(editor).controller!.text, '# 생각\n연결하기');
+    expect(find.text('메모 다듬기'), findsNothing);
+    await tester.enterText(editor, '수정한 생각');
+    await tester.tap(
+      find.descendant(of: find.byType(AlertDialog), matching: find.text('저장')),
     );
-    await tester.enterText(find.byType(TextField).first, '수정한 생각');
-    await tester.ensureVisible(find.text('저장'));
-    await tester.tap(find.text('저장'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('수정한 생각'), findsOneWidget);
     await tester.enterText(find.byType(TextField).last, '없는 검색어');
     await tester.pump();
