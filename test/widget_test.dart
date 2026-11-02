@@ -54,11 +54,8 @@ void main() {
     );
     await tester.tap(find.text('기록함에 담기'));
     await tester.pumpAndSettle();
-    expect(find.text('완성 글'), findsWidgets);
-    await tester.tap(find.text('원소'));
-    await tester.pumpAndSettle();
-    expect(find.text('프로젝트의 모든 원소'), findsOneWidget);
-    await tester.tap(find.byTooltip('프로젝트 편집'));
+    await tester.ensureVisible(find.text('관찰'));
+    await tester.tap(find.text('관찰'));
     await tester.pumpAndSettle();
     expect(
       tester

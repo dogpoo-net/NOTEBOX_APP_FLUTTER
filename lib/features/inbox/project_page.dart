@@ -4,11 +4,12 @@ import 'paragraph_editor.dart';
 import 'word_badge.dart';
 
 class WritingProject {
-  WritingProject(this.paragraphs, List<String> words) : words = List.of(words);
+  WritingProject(this.paragraphs, List<String> words, {required this.name})
+    : words = List.of(words);
+  String name;
   List<Paragraph> paragraphs;
   final List<String> words;
-  String get title =>
-      paragraphs.isEmpty ? '새 프로젝트' : paragraphs.first.text.split('\n').first;
+  String get title => name;
 }
 
 class ProjectPage extends StatefulWidget {
@@ -70,7 +71,7 @@ class _ProjectPageState extends State<ProjectPage> {
                 Wrap(
                   spacing: 8,
                   children: [
-                    for (final entry in ['완성 글', '원소', '문단'].asMap().entries)
+                    for (final entry in ['미리보기', '원소', '문단'].asMap().entries)
                       ChoiceChip(
                         label: Text(entry.value),
                         selected: _tab == entry.key,
@@ -80,7 +81,7 @@ class _ProjectPageState extends State<ProjectPage> {
                 ),
                 const SizedBox(height: 24),
                 if (_tab == 0) ...[
-                  const Text('완성 글', style: TextStyle(fontSize: 12)),
+                  const Text('미리보기', style: TextStyle(fontSize: 12)),
                   const SizedBox(height: 20),
                   for (final p in project.paragraphs)
                     Padding(

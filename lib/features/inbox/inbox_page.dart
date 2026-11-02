@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'paragraph_editor.dart';
 import 'word_badge.dart';
 import 'project_page.dart';
+import 'project_builder.dart';
 
 class Note {
   Note(this.content) : createdAt = DateTime.now();
@@ -10,7 +11,7 @@ class Note {
   List<Paragraph>? paragraphs;
   WritingProject? project;
   final DateTime createdAt;
-  String get title => content.trim().split('\n').first.trim();
+  String get title => project?.name ?? content.trim().split('\n').first.trim();
 }
 
 class InboxPage extends StatefulWidget {
@@ -72,23 +73,42 @@ class _InboxPageState extends State<InboxPage> {
       ),
     );
     if (result == null || !mounted) return;
-    Note? saved;
     setState(() {
       final content = result.map((p) => p.text).join('\n\n');
       if (note == null) {
-        saved = Note(content)
-          ..paragraphs = result
-          ..project = WritingProject(
-            result,
-            words.isEmpty ? starterWords : words,
-          );
-        _notes.insert(0, saved!);
+        _notes.insert(0, Note(content)..paragraphs = result);
       } else {
         note.content = content;
         note.paragraphs = result;
       }
     });
-    if (saved != null) await _showProject(saved!);
+  }
+
+  Future<void> _createProject() async {
+    final available = _notes
+        .where((n) => n.project == null)
+        .expand((n) => n.paragraphs ?? <Paragraph>[])
+        .toList();
+    final words = _notes
+        .where(
+          (n) =>
+              n.paragraphs == null && !n.content.trim().contains(RegExp(r'\s')),
+        )
+        .map((n) => n.title)
+        .toSet()
+        .toList();
+    final project = await Navigator.push<WritingProject>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProjectBuilder(available: available, words: words),
+      ),
+    );
+    if (project == null || !mounted) return;
+    final note = Note(project.paragraphs.map((p) => p.text).join('\n\n'))
+      ..project = project
+      ..paragraphs = project.paragraphs;
+    setState(() => _notes.insert(0, note));
+    await _showProject(note);
   }
 
   Future<void> _showProject(Note note) async {
@@ -379,6 +399,11 @@ class _InboxPageState extends State<InboxPage> {
                   onPressed: () => _writeParagraphs(),
                   icon: const Icon(Icons.subject),
                   label: const Text('문단 쓰기'),
+                ),
+                TextButton.icon(
+                  onPressed: _createProject,
+                  icon: const Icon(Icons.create_new_folder_outlined),
+                  label: const Text('프로젝트 생성'),
                 ),
                 const SizedBox(height: 12),
                 LayoutBuilder(
