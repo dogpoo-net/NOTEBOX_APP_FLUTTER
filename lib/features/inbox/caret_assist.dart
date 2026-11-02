@@ -40,6 +40,7 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
   String _query = '';
   bool _controlling = false;
   bool _controlAlone = false;
+  bool _pendingToggle = false;
   final _badgeKeys = <String, GlobalKey>{};
   bool get _desktop =>
       MediaQuery.sizeOf(context).width >= 760 &&
@@ -112,11 +113,6 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
     final control =
         event.logicalKey == LogicalKeyboardKey.controlLeft ||
         event.logicalKey == LogicalKeyboardKey.controlRight;
-    final composing = widget.controller.value.composing;
-    if (composing.isValid && !composing.isCollapsed) {
-      _controlAlone = false;
-      return false;
-    }
     if (control) {
       if (event is KeyDownEvent) {
         _controlAlone =
@@ -126,14 +122,25 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
       }
       if (event is KeyUpEvent && _controlAlone) {
         _controlAlone = false;
-        _controlling = !_controlling;
-        _entry?.markNeedsBuild();
-        _revealSelection();
+        // Commit the current IME text without moving its selection. Apply the
+        // toggle after suggestions have caught up with the committed value.
+        final composing = widget.controller.value.composing;
+        if (composing.isValid && !composing.isCollapsed) {
+          widget.controller.clearComposing();
+          _pendingToggle = !_pendingToggle;
+          _update();
+        } else {
+          _controlling = !_controlling;
+          _entry?.markNeedsBuild();
+          _revealSelection();
+        }
       }
       return false;
     }
     if (event is KeyUpEvent) return false;
     _controlAlone = false;
+    final composing = widget.controller.value.composing;
+    if (composing.isValid && !composing.isCollapsed) return false;
     if (keyboard.isControlPressed ||
         keyboard.isMetaPressed ||
         keyboard.isAltPressed ||
@@ -203,6 +210,7 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
       if (!widget.focus.hasFocus || _dismissed == widget.controller.text) {
         _controlling = false;
         _controlAlone = false;
+        _pendingToggle = false;
         return;
       }
       EditableTextState? editable;
@@ -225,7 +233,15 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
       _query = query;
       _matches = matches;
       if (_selected >= matches.length) _selected = 0;
-      if (matches.isEmpty) return;
+      if (matches.isEmpty) {
+        _pendingToggle = false;
+        return;
+      }
+      if (_pendingToggle) {
+        _pendingToggle = false;
+        _controlling = !_controlling;
+        _revealSelection();
+      }
       final render = editable!.renderEditable;
       final caret = render.getLocalRectForCaret(
         TextPosition(
