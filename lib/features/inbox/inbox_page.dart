@@ -308,7 +308,7 @@ class _InboxPageState extends State<InboxPage> {
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
-                '${note.createdAt.month}월 ${note.createdAt.day}일 · 빠른 메모',
+                '${note.createdAt.month}월 ${note.createdAt.day}일 · ${note.project != null ? '프로젝트' : ['제목', '부제', '본문'][note.paragraphs!.first.role.index]}',
                 style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
               ),
               trailing: const Icon(Icons.chevron_right, size: 20),
