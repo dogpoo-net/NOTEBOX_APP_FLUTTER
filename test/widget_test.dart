@@ -3,6 +3,37 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notebox/main.dart';
 
 void main() {
+  testWidgets('paragraph roles persist after saving and reopening', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.tap(find.text('문단 쓰기'));
+    await tester.pumpAndSettle();
+    expect(find.text('타이틀'), findsNothing);
+    await tester.tap(find.text('관찰'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('타이틀'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('다음 문단'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('paragraph-1')),
+      '관찰에서 시작한 이야기',
+    );
+    await tester.tap(find.text('기록함에 담기'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('관찰'));
+    await tester.tap(find.text('관찰'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('paragraph-0')))
+          .style!
+          .fontSize,
+      28,
+    );
+    expect(find.text('관찰에서 시작한 이야기'), findsOneWidget);
+  });
   testWidgets('theme switch retains draft and applies both palettes', (
     tester,
   ) async {
@@ -36,6 +67,7 @@ void main() {
     );
     await tester.enterText(find.byType(TextField).first, '# 생각\n연결하기');
     await tester.pump();
+    await tester.ensureVisible(find.text('기록함에 담기'));
     await tester.tap(find.text('기록함에 담기'));
     await tester.pump();
     expect(find.text('# 생각'), findsOneWidget);

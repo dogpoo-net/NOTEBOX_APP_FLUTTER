@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'paragraph_editor.dart';
+
 class Note {
   Note(this.content) : createdAt = DateTime.now();
   String content;
+  List<Paragraph>? paragraphs;
   final DateTime createdAt;
-  String get title => content.trim().split('\n').first;
+  String get title => content.trim().split('\n').first.trim();
 }
 
 class InboxPage extends StatefulWidget {
@@ -50,7 +53,39 @@ class _InboxPageState extends State<InboxPage> {
     _focus.requestFocus();
   }
 
+  Future<void> _writeParagraphs([Note? note]) async {
+    final words = _notes
+        .map((n) => n.title.trim())
+        .where((s) => s.isNotEmpty && !s.contains(' ') && s.length <= 20)
+        .toSet()
+        .take(12)
+        .toList();
+    final result = await Navigator.push<List<Paragraph>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ParagraphEditor(
+          initial: note?.paragraphs ?? const [],
+          words: words,
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      final content = result.map((p) => p.text).join('\n\n');
+      if (note == null) {
+        _notes.insert(0, Note(content)..paragraphs = result);
+      } else {
+        note.content = content;
+        note.paragraphs = result;
+      }
+    });
+  }
+
   Future<void> _open(Note note) async {
+    if (note.paragraphs != null) {
+      await _writeParagraphs(note);
+      return;
+    }
     if (_draft.text.isNotEmpty) {
       final discard = await showDialog<bool>(
         context: context,
@@ -98,6 +133,11 @@ class _InboxPageState extends State<InboxPage> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ],
+          ),
+          TextButton.icon(
+            onPressed: () => _writeParagraphs(),
+            icon: const Icon(Icons.subject),
+            label: const Text('문단 쓰기'),
           ),
           const SizedBox(height: 14),
           TextField(
