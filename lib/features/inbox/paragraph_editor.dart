@@ -141,13 +141,6 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  Text(
-                    '단어를 씨앗으로, 한 편의 글로',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text('원소 후보는 입력 커서 아래에 나타납니다.'),
-                  const SizedBox(height: 16),
                   for (var i = 0; i < _controllers.length; i++)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16),

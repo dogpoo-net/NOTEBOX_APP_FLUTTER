@@ -4,6 +4,7 @@ import 'paragraph_editor.dart';
 import 'word_badge.dart';
 import 'project_page.dart';
 import 'project_builder.dart';
+import 'workspace_menu.dart';
 
 class Note {
   Note(this.content) : createdAt = DateTime.now();
@@ -159,6 +160,22 @@ class _InboxPageState extends State<InboxPage> {
     _focus.requestFocus();
   }
 
+  Future<void> _menu() async {
+    FocusScope.of(context).unfocus();
+    final projects = _notes.where((n) => n.project != null).toList();
+    final choice = await showDialog<int>(
+      context: context,
+      builder: (_) =>
+          WorkspaceMenu(projects: projects.map((n) => n.title).toList()),
+    );
+    if (!mounted || choice == null || choice == -1) return;
+    if (choice == -2) {
+      await _writeParagraphs();
+    } else {
+      await _showProject(projects[choice]);
+    }
+  }
+
   ColorScheme get colors => Theme.of(context).colorScheme;
 
   Widget _composer() => Card(
@@ -192,7 +209,7 @@ class _InboxPageState extends State<InboxPage> {
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
-              hintText: '지금 떠오른 생각은 무엇인가요?\n제목 없이, 한 줄부터 시작해도 좋아요.',
+              hintText: '단어나 생각을 남겨보세요',
               contentPadding: EdgeInsets.zero,
             ),
           ),
@@ -202,10 +219,6 @@ class _InboxPageState extends State<InboxPage> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text(
-                '단어 하나부터, 편하게',
-                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
-              ),
               FilledButton.icon(
                 onPressed: _draft.text.trim().isEmpty ? null : _save,
                 icon: const Icon(Icons.arrow_downward_rounded, size: 18),
@@ -250,14 +263,12 @@ class _InboxPageState extends State<InboxPage> {
                 Icon(Icons.inbox_outlined, size: 40, color: colors.primary),
                 const SizedBox(height: 16),
                 Text(
-                  _notes.isEmpty ? '작은 생각이 지식의 시작이에요' : '일치하는 메모가 없어요',
+                  _notes.isEmpty ? '아직 메모가 없어요' : '일치하는 메모가 없어요',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _notes.isEmpty
-                      ? '읽다가 떠오른 질문, 잊고 싶지 않은 문장.\n먼저 담아두고, 정리는 나중에 해요.'
-                      : '다른 단어로 찾아보세요.',
+                  _notes.isEmpty ? '첫 메모를 남겨보세요.' : '다른 단어로 찾아보세요.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: colors.onSurfaceVariant, height: 1.7),
                 ),
@@ -313,19 +324,10 @@ class _InboxPageState extends State<InboxPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      leading: Padding(
-        padding: const EdgeInsets.all(10),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: colors.primaryContainer,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            Icons.grid_view_rounded,
-            color: colors.onPrimaryContainer,
-            size: 20,
-          ),
-        ),
+      leading: IconButton(
+        tooltip: '메뉴 열기',
+        onPressed: _menu,
+        icon: const Icon(Icons.grid_view_rounded),
       ),
       actions: [
         PopupMenuButton<ThemeMode>(
@@ -376,57 +378,54 @@ class _InboxPageState extends State<InboxPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'MY WORKSPACE  /  INBOX',
-                  style: TextStyle(color: colors.primary, fontSize: 13),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  '나의 기록함',
-                  style: TextStyle(
-                    fontSize: 34,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -1.4,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '완벽하게 쓰지 않아도 괜찮아요.',
-                  style: TextStyle(color: colors.onSurfaceVariant),
-                ),
-                const SizedBox(height: 24),
-                TextButton.icon(
-                  onPressed: () => _writeParagraphs(),
-                  icon: const Icon(Icons.subject),
-                  label: const Text('문단 쓰기'),
-                ),
-                TextButton.icon(
-                  onPressed: _createProject,
-                  icon: const Icon(Icons.create_new_folder_outlined),
-                  label: const Text('프로젝트 생성'),
-                ),
+                Text('기록함', style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => _writeParagraphs(),
+                      icon: const Icon(Icons.subject, size: 18),
+                      label: const Text('문단 쓰기'),
+                    ),
+                    TextButton.icon(
+                      onPressed: _createProject,
+                      icon: const Icon(
+                        Icons.create_new_folder_outlined,
+                        size: 18,
+                      ),
+                      label: const Text('프로젝트 생성'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
                 LayoutBuilder(
                   builder: (context, constraints) => constraints.maxWidth >= 760
                       ? Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: _list()),
-                            const SizedBox(width: 32),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: _list(),
+                              ),
+                            ),
+                            const SizedBox(width: 24),
                             Expanded(child: _composer()),
                           ],
                         )
                       : Column(
                           children: [
                             _composer(),
-                            const SizedBox(height: 32),
+                            const SizedBox(height: 24),
                             _list(),
                           ],
                         ),
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  '미리보기 단계 · 메모는 앱을 재시작하면 초기화됩니다.',
+                  '임시 저장 · 새로고침 시 초기화',
                   style: TextStyle(
                     color: colors.onSurfaceVariant,
                     fontSize: 12,
