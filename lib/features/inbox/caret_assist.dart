@@ -39,66 +39,130 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
   int _selected = 0;
   String _query = '';
   bool _controlling = false;
+  bool _controlAlone = false;
+  final _badgeKeys = <String, GlobalKey>{};
   bool get _desktop =>
       MediaQuery.sizeOf(context).width >= 760 &&
       MediaQuery.viewInsetsOf(context).bottom == 0;
   void _choose(String word) {
+    _controlling = false;
     widget.onWord(word);
     _dismissed = widget.controller.text;
     _hide();
   }
 
-  bool _key(KeyEvent event) {
-    if (event is KeyUpEvent && !HardwareKeyboard.instance.isControlPressed) {
-      _controlling = false;
-      _entry?.markNeedsBuild();
+  void _revealSelection() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_controlling || _matches.isEmpty) return;
+      final target = _badgeKeys[_matches[_selected]]?.currentContext;
+      if (target != null) Scrollable.ensureVisible(target, alignment: .5);
+    });
+  }
+
+  void _move(LogicalKeyboardKey direction) {
+    Rect? bounds(int index) {
+      final box = _badgeKeys[_matches[index]]?.currentContext
+          ?.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) return null;
+      return box.localToGlobal(Offset.zero) & box.size;
     }
+
+    final current = bounds(_selected);
+    if (current == null) return;
+    final vertical =
+        direction == LogicalKeyboardKey.arrowUp ||
+        direction == LogicalKeyboardKey.arrowDown;
+    final positive =
+        direction == LogicalKeyboardKey.arrowDown ||
+        direction == LogicalKeyboardKey.arrowRight;
+    double bestPrimary = double.infinity, bestSecondary = double.infinity;
+    var next = _selected;
+    for (var i = 0; i < _matches.length; i++) {
+      if (i == _selected) continue;
+      final candidate = bounds(i);
+      if (candidate == null) continue;
+      final dx = candidate.center.dx - current.center.dx;
+      final dy = candidate.center.dy - current.center.dy;
+      final primary = vertical ? dy : dx;
+      if ((positive ? primary : -primary) <= 1) continue;
+      if (!vertical && dy.abs() > 1) continue;
+      final distance = primary.abs();
+      final secondary = vertical ? dx.abs() : dy.abs();
+      if (distance < bestPrimary - 1 ||
+          ((distance - bestPrimary).abs() <= 1 && secondary < bestSecondary)) {
+        bestPrimary = distance;
+        bestSecondary = secondary;
+        next = i;
+      }
+    }
+    _selected = next;
+    _entry?.markNeedsBuild();
+    _revealSelection();
+  }
+
+  bool _key(KeyEvent event) {
     if (!mounted ||
         !widget.focus.hasFocus ||
         !_desktop ||
         _entry == null ||
-        _matches.isEmpty ||
-        event is KeyUpEvent) {
+        _matches.isEmpty) {
       return false;
     }
     final keyboard = HardwareKeyboard.instance;
-    if (keyboard.isMetaPressed ||
+    final control =
+        event.logicalKey == LogicalKeyboardKey.controlLeft ||
+        event.logicalKey == LogicalKeyboardKey.controlRight;
+    final composing = widget.controller.value.composing;
+    if (composing.isValid && !composing.isCollapsed) {
+      _controlAlone = false;
+      return false;
+    }
+    if (control) {
+      if (event is KeyDownEvent) {
+        _controlAlone =
+            !keyboard.isAltPressed &&
+            !keyboard.isMetaPressed &&
+            !keyboard.isShiftPressed;
+      }
+      if (event is KeyUpEvent && _controlAlone) {
+        _controlAlone = false;
+        _controlling = !_controlling;
+        _entry?.markNeedsBuild();
+        _revealSelection();
+      }
+      return false;
+    }
+    if (event is KeyUpEvent) return false;
+    _controlAlone = false;
+    if (keyboard.isControlPressed ||
+        keyboard.isMetaPressed ||
         keyboard.isAltPressed ||
         keyboard.isShiftPressed) {
       return false;
     }
-    if (!keyboard.isControlPressed) {
+    if (!_controlling) return false;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
       _controlling = false;
       _entry?.markNeedsBuild();
-      return false;
-    }
-    final composing = widget.controller.value.composing;
-    if (composing.isValid && !composing.isCollapsed) return false;
-    if (event.logicalKey == LogicalKeyboardKey.escape) {
-      _dismissed = widget.controller.text;
-      _hide();
       return true;
     }
-    if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
-        event.logicalKey == LogicalKeyboardKey.arrowUp ||
-        event.logicalKey == LogicalKeyboardKey.arrowLeft ||
-        event.logicalKey == LogicalKeyboardKey.arrowRight) {
-      final forward =
-          event.logicalKey == LogicalKeyboardKey.arrowDown ||
-          event.logicalKey == LogicalKeyboardKey.arrowRight;
-      _selected = _controlling
-          ? (_selected + (forward ? 1 : -1)) % _matches.length
-          : (forward ? 0 : _matches.length - 1);
-      _controlling = true;
-      _entry?.markNeedsBuild();
+    if ([
+      LogicalKeyboardKey.arrowDown,
+      LogicalKeyboardKey.arrowUp,
+      LogicalKeyboardKey.arrowLeft,
+      LogicalKeyboardKey.arrowRight,
+    ].contains(event.logicalKey)) {
+      _move(event.logicalKey);
       return true;
     }
-    if (_controlling &&
-        (event.logicalKey == LogicalKeyboardKey.enter ||
-            event.logicalKey == LogicalKeyboardKey.space)) {
+    if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.space) {
       _choose(_matches[_selected]);
       return true;
     }
+    // Typing resumes editing without losing the caret or the typed character.
+    _controlling = false;
+    _entry?.markNeedsBuild();
     return false;
   }
 
@@ -137,6 +201,8 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
       if (!mounted) return;
       _hide();
       if (!widget.focus.hasFocus || _dismissed == widget.controller.text) {
+        _controlling = false;
+        _controlAlone = false;
         return;
       }
       EditableTextState? editable;
@@ -219,9 +285,13 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
                         children: [
                           Row(
                             children: [
-                              const Expanded(
+                              Expanded(
                                 child: Text(
-                                  '원소 어시스트',
+                                  _desktop
+                                      ? (_controlling
+                                            ? '원소 선택 · Ctrl로 입력'
+                                            : '원소 어시스트 · Ctrl로 선택')
+                                      : '원소 어시스트',
                                   style: TextStyle(fontSize: 11),
                                 ),
                               ),
@@ -241,17 +311,24 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
                             runSpacing: 6,
                             children: matches
                                 .map(
-                                  (word) => WordBadge(
-                                    key: ValueKey('suggestion-$word'),
-                                    word: word,
-                                    selected:
-                                        _controlling &&
-                                        matches.indexOf(word) == _selected,
-                                    onTap: () {
-                                      widget.onWord(word);
-                                      _dismissed = widget.controller.text;
-                                      _hide();
-                                    },
+                                  (word) => Container(
+                                    key: _badgeKeys.putIfAbsent(
+                                      word,
+                                      () => GlobalKey(),
+                                    ),
+                                    child: WordBadge(
+                                      key: ValueKey('suggestion-$word'),
+                                      word: word,
+                                      selected:
+                                          _controlling &&
+                                          matches.indexOf(word) == _selected,
+                                      onTap: () {
+                                        widget.onWord(word);
+                                        _dismissed = widget.controller.text;
+                                        _controlling = false;
+                                        _hide();
+                                      },
+                                    ),
                                   ),
                                 )
                                 .toList(),

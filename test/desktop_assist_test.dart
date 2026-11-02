@@ -23,40 +23,62 @@ void main() {
       '생',
     );
   });
-  testWidgets('desktop badge selection requires control', (tester) async {
+  testWidgets('control toggles badge navigation with spatial arrows', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(
-      const MaterialApp(home: ParagraphEditor(words: ['생각', '생각 정리', '작은 생각'])),
-    );
+    final words = List.generate(24, (i) => '원소${i.toString().padLeft(2, '0')}');
+    await tester.pumpWidget(MaterialApp(home: ParagraphEditor(words: words)));
     final field = find.byKey(const ValueKey('paragraph-0'));
-    await tester.enterText(field, '생각');
+    await tester.enterText(field, '원');
     await tester.pumpAndSettle();
     final controller = tester.widget<TextField>(field).controller!;
+    String selected() => tester
+        .widgetList<WordBadge>(find.byType(WordBadge))
+        .singleWhere((b) => b.selected)
+        .word;
+    await tester.sendKeyEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(selected(), words.first);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(selected(), words[1]);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await tester.pumpAndSettle();
-    expect(controller.selection.extentOffset, 1);
-    expect(controller.text, '생각');
-    controller.selection = const TextSelection.collapsed(offset: 2);
+    expect(selected(), words.first);
+    final origin = tester.getCenter(
+      find.byKey(ValueKey('suggestion-${words.first}')),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
-    expect(find.byType(WordBadge), findsWidgets);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-    await tester.pump();
+    final below = selected();
+    expect(words.indexOf(below), greaterThan(1));
+    expect(
+      tester.getCenter(find.byKey(ValueKey('suggestion-$below'))).dy,
+      greaterThan(origin.dy),
+    );
+    expect(controller.selection.extentOffset, 1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pumpAndSettle();
+    expect(selected(), words.first);
+    await tester.sendKeyEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+    expect(controller.selection.extentOffset, 0);
+    expect(
+      tester
+          .widgetList<WordBadge>(find.byType(WordBadge))
+          .any((b) => b.selected),
+      isFalse,
+    );
+    controller.selection = const TextSelection.collapsed(offset: 1);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
-    expect(tester.widget<TextField>(field).controller!.text, '생각 정리');
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-    await tester.enterText(field, '생');
-    await tester.pumpAndSettle();
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-    await tester.pumpAndSettle();
-    expect(tester.widget<TextField>(field).controller!.text, '생각');
+    expect(controller.text, words.first);
   });
 }
