@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'paragraph_editor.dart';
 import 'word_badge.dart';
+import 'element_store.dart';
 
 class WritingProject {
   WritingProject(this.paragraphs, List<String> words, {required this.name})
@@ -35,7 +36,7 @@ class _ProjectPageState extends State<ProjectPage> {
         builder: (_) => ParagraphEditor(
           projectEditing: true,
           initial: widget.project.paragraphs,
-          words: widget.project.words,
+          words: elements.words,
         ),
       ),
     );
@@ -47,6 +48,16 @@ class _ProjectPageState extends State<ProjectPage> {
   @override
   Widget build(BuildContext context) {
     final project = widget.project;
+    elements.sources[project] = [
+      for (var i = 0; i < project.paragraphs.length; i++)
+        ElementSource(
+          '${project.name} · 문단 ${i + 1}',
+          project.paragraphs[i].text,
+        ),
+    ];
+    final usedWords = project.paragraphs
+        .expand((p) => elements.matches(p.text).map((h) => h.word))
+        .toSet();
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -87,7 +98,7 @@ class _ProjectPageState extends State<ProjectPage> {
                   for (final p in project.paragraphs)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 20),
-                      child: SelectableText(
+                      child: ElementText(
                         p.text,
                         style: TextStyle(
                           height: 1.7,
@@ -104,17 +115,17 @@ class _ProjectPageState extends State<ProjectPage> {
                     ),
                 ],
                 if (_tab == 1) ...[
-                  const Text('프로젝트의 모든 원소'),
+                  const Text('이 프로젝트에서 사용한 원소'),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
-                    children: project.words
+                    children: usedWords
                         .map(
                           (w) => WordBadge(
                             word: w,
                             onTap: () {
-                              _word.text = w;
+                              showElementMetadata(context, w);
                             },
                           ),
                         )
@@ -131,13 +142,11 @@ class _ProjectPageState extends State<ProjectPage> {
                       final word = _word.text.trim();
                       if (word.isEmpty) return;
                       setState(() {
-                        if (!project.words.contains(word)) {
-                          project.words.add(word);
-                        }
+                        elements.add(word);
                         _word.clear();
                       });
                     },
-                    child: const Text('원소 담기'),
+                    child: const Text('글로벌 원소 저장'),
                   ),
                 ],
                 if (_tab == 2) ...[

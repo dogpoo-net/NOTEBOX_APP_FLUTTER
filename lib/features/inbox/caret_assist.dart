@@ -74,7 +74,7 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
       if (editable == null) return;
       final value = widget.controller.value;
       final matches = widget.words
-          .where((w) => matchesWord(w, wordPrefix(value)))
+          .where((w) => matchesWord(w, completionPrefix(value, widget.words)))
           .toList();
       if (matches.isEmpty) return;
       final render = editable!.renderEditable;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'word_badge.dart';
 import 'caret_assist.dart';
+import 'element_store.dart';
 
 enum ParagraphRole { title, subtitle, body }
 
@@ -67,7 +68,7 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
   void _insert(String word, {bool complete = false}) {
     final c = _controllers[_active];
     final selection = c.selection;
-    final prefix = complete ? wordPrefix(c.value) : "";
+    final prefix = complete ? completionPrefix(c.value, words) : "";
     final start =
         (selection.isValid ? selection.start : c.text.length) - prefix.length;
     final end = selection.isValid ? selection.end : start;
@@ -152,7 +153,7 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
                                               padding: const EdgeInsets.only(
                                                 bottom: 20,
                                               ),
-                                              child: SelectableText(
+                                              child: ElementText(
                                                 _controllers[i].text,
                                                 style: TextStyle(
                                                   height: 1.7,

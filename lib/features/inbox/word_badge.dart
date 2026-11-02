@@ -6,6 +6,16 @@ final _random = Random();
 final _wordHues = <String, double>{};
 const starterWords = ['관찰', '질문', '연결', '기억', '성장'];
 
+Color wordColor(BuildContext context, String word) {
+  final hue = _wordHues.putIfAbsent(word, () => _random.nextDouble() * 360);
+  return HSLColor.fromAHSL(
+    1,
+    hue,
+    .5,
+    Theme.of(context).brightness == Brightness.dark ? .9 : .23,
+  ).toColor();
+}
+
 class WordBadge extends StatelessWidget {
   const WordBadge({super.key, required this.word, required this.onTap});
   final String word;
@@ -77,4 +87,18 @@ String _hangulParts(String text) {
     if (index % 28 != 0) result.write(finalLetters[index % 28]);
   }
   return result.toString();
+}
+
+String completionPrefix(TextEditingValue value, List<String> words) {
+  if (!value.selection.isValid || !value.selection.isCollapsed) return '';
+  final before = value.text.substring(0, value.selection.extentOffset);
+  for (var i = 0; i < before.length; i++) {
+    if (i > 0 && !RegExp(r'\s').hasMatch(before[i - 1])) continue;
+    final candidate = before.substring(i);
+    if (candidate.isNotEmpty &&
+        words.any((word) => matchesWord(word, candidate))) {
+      return candidate;
+    }
+  }
+  return wordPrefix(value);
 }

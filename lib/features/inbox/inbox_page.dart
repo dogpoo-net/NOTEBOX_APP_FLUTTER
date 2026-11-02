@@ -5,6 +5,7 @@ import 'word_badge.dart';
 import 'project_page.dart';
 import 'project_builder.dart';
 import 'workspace_menu.dart';
+import 'element_store.dart';
 
 class Note {
   Note(this.content) : createdAt = DateTime.now();
@@ -43,6 +44,7 @@ class _InboxPageState extends State<InboxPage> {
 
   void _save() {
     if (_draft.text.trim().isEmpty) return;
+    elements.add(_draft.text);
     setState(() {
       if (_editing == null) {
         _notes.insert(0, Note(_draft.text));
@@ -59,12 +61,7 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Future<void> _writeParagraphs([Note? note]) async {
-    final words = _notes
-        .where((n) => n.paragraphs == null && n.project == null)
-        .map((n) => n.content.trim())
-        .where((s) => s.isNotEmpty)
-        .toSet()
-        .toList();
+    final words = elements.words;
     final result = await Navigator.push<List<Paragraph>>(
       context,
       MaterialPageRoute(
@@ -76,12 +73,9 @@ class _InboxPageState extends State<InboxPage> {
     );
     if (result == null || !mounted) return;
     setState(() {
-      final content = result.map((p) => p.text).join('\n\n');
-      if (note == null) {
-        _notes.insert(0, Note(content)..paragraphs = result);
-      } else {
-        note.content = content;
-        note.paragraphs = result;
+      if (note != null) _notes.remove(note);
+      for (final paragraph in result.reversed) {
+        _notes.insert(0, Note(paragraph.text)..paragraphs = [paragraph]);
       }
     });
   }
@@ -91,11 +85,7 @@ class _InboxPageState extends State<InboxPage> {
         .where((n) => n.project == null)
         .expand((n) => n.paragraphs ?? <Paragraph>[])
         .toList();
-    final words = _notes
-        .where((n) => n.paragraphs == null && n.project == null)
-        .map((n) => n.content.trim())
-        .toSet()
-        .toList();
+    final words = elements.words;
     final project = await Navigator.push<WritingProject>(
       context,
       MaterialPageRoute(
@@ -277,12 +267,23 @@ class _InboxPageState extends State<InboxPage> {
         Wrap(
           spacing: 6,
           runSpacing: 6,
-          children: visible
-              .where((n) => n.paragraphs == null && n.project == null)
+          children: elements.words
+              .where(
+                (word) => word.toLowerCase().contains(_query.toLowerCase()),
+              )
               .map(
-                (note) => WordBadge(
-                  word: note.content.trim(),
-                  onTap: () => _open(note),
+                (word) => WordBadge(
+                  word: word,
+                  onTap: () {
+                    final notes = _notes.where(
+                      (n) => n.paragraphs == null && n.content.trim() == word,
+                    );
+                    if (notes.isNotEmpty) {
+                      _open(notes.first);
+                    } else {
+                      showElementMetadata(context, word);
+                    }
+                  },
                 ),
               )
               .toList(),
@@ -319,120 +320,131 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      leading: IconButton(
-        tooltip: '메뉴 열기',
-        onPressed: _menu,
-        icon: const Icon(Icons.grid_view_rounded),
-      ),
-      actions: [
-        PopupMenuButton<ThemeMode>(
-          tooltip: '테마 선택',
-          initialValue: widget.themeMode,
-          onSelected: widget.onThemeChanged,
-          icon: Icon(
-            Theme.of(context).brightness == Brightness.dark
-                ? Icons.dark_mode_outlined
-                : Icons.light_mode_outlined,
+  Widget build(BuildContext context) {
+    elements.sources[this] = [
+      for (var i = 0; i < _notes.length; i++)
+        if (_notes[i].paragraphs != null && _notes[i].project == null)
+          ElementSource(
+            '독립 문단 ${i + 1}: ${_notes[i].title}',
+            _notes[i].content,
           ),
-          itemBuilder: (_) => [
-            CheckedPopupMenuItem(
-              value: ThemeMode.system,
-              checked: widget.themeMode == ThemeMode.system,
-              child: const Text('시스템 설정'),
-            ),
-            CheckedPopupMenuItem(
-              value: ThemeMode.light,
-              checked: widget.themeMode == ThemeMode.light,
-              child: const Text('라이트'),
-            ),
-            CheckedPopupMenuItem(
-              value: ThemeMode.dark,
-              checked: widget.themeMode == ThemeMode.dark,
-              child: const Text('다크'),
-            ),
-          ],
+    ];
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: '메뉴 열기',
+          onPressed: _menu,
+          icon: const Icon(Icons.grid_view_rounded),
         ),
-        const SizedBox(width: 12),
-      ],
-      title: Text(
-        'NOTEBOX',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 3,
+        actions: [
+          PopupMenuButton<ThemeMode>(
+            tooltip: '테마 선택',
+            initialValue: widget.themeMode,
+            onSelected: widget.onThemeChanged,
+            icon: Icon(
+              Theme.of(context).brightness == Brightness.dark
+                  ? Icons.dark_mode_outlined
+                  : Icons.light_mode_outlined,
+            ),
+            itemBuilder: (_) => [
+              CheckedPopupMenuItem(
+                value: ThemeMode.system,
+                checked: widget.themeMode == ThemeMode.system,
+                child: const Text('시스템 설정'),
+              ),
+              CheckedPopupMenuItem(
+                value: ThemeMode.light,
+                checked: widget.themeMode == ThemeMode.light,
+                child: const Text('라이트'),
+              ),
+              CheckedPopupMenuItem(
+                value: ThemeMode.dark,
+                checked: widget.themeMode == ThemeMode.dark,
+                child: const Text('다크'),
+              ),
+            ],
+          ),
+          const SizedBox(width: 12),
+        ],
+        title: Text(
+          'NOTEBOX',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 3,
+          ),
         ),
+        centerTitle: false,
       ),
-      centerTitle: false,
-    ),
-    body: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1080),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('기록함', style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => _writeParagraphs(),
-                      icon: const Icon(Icons.subject, size: 18),
-                      label: const Text('문단 쓰기'),
-                    ),
-                    TextButton.icon(
-                      onPressed: _createProject,
-                      icon: const Icon(
-                        Icons.create_new_folder_outlined,
-                        size: 18,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1080),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('기록함', style: Theme.of(context).textTheme.headlineSmall),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => _writeParagraphs(),
+                        icon: const Icon(Icons.subject, size: 18),
+                        label: const Text('문단 쓰기'),
                       ),
-                      label: const Text('프로젝트 생성'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                LayoutBuilder(
-                  builder: (context, constraints) => constraints.maxWidth >= 760
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: _list(),
-                              ),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(child: _composer()),
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            _composer(),
-                            const SizedBox(height: 24),
-                            _list(),
-                          ],
+                      TextButton.icon(
+                        onPressed: _createProject,
+                        icon: const Icon(
+                          Icons.create_new_folder_outlined,
+                          size: 18,
                         ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  '임시 저장 · 새로고침 시 초기화',
-                  style: TextStyle(
-                    color: colors.onSurfaceVariant,
-                    fontSize: 12,
+                        label: const Text('프로젝트 생성'),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 20),
+                  LayoutBuilder(
+                    builder: (context, constraints) =>
+                        constraints.maxWidth >= 760
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: _list(),
+                                ),
+                              ),
+                              const SizedBox(width: 24),
+                              Expanded(child: _composer()),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              _composer(),
+                              const SizedBox(height: 24),
+                              _list(),
+                            ],
+                          ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    '임시 저장 · 새로고침 시 초기화',
+                    style: TextStyle(
+                      color: colors.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

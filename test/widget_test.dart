@@ -17,7 +17,7 @@ void main() {
     await tester.ensureVisible(find.text('문단 쓰기'));
     await tester.tap(find.text('문단 쓰기'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('paragraph-0')), '작');
+    await tester.enterText(find.byKey(const ValueKey('paragraph-0')), '작은 생');
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('suggestion-작은 생각')), findsOneWidget);
   });
@@ -81,7 +81,8 @@ void main() {
           .fontSize,
       28,
     );
-    expect(find.text('관찰에서 시작한 이야기'), findsOneWidget);
+    expect(find.text('관찰에서 시작한 이야기'), findsNothing);
+    expect(find.byKey(const ValueKey('paragraph-1')), findsNothing);
   });
   testWidgets('theme switch retains draft and applies both palettes', (
     tester,

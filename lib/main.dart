@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'features/inbox/inbox_page.dart';
+import 'features/inbox/element_store.dart';
 
 void main() => runApp(const MyApp());
 
@@ -12,6 +13,11 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   ThemeMode _mode = ThemeMode.system;
+  @override
+  void initState() {
+    super.initState();
+    elements.clear();
+  }
 
   ThemeData _theme(Brightness brightness) {
     final colors = ColorScheme.fromSeed(
