@@ -30,7 +30,11 @@ class ElementSource {
   final String text;
 }
 
-class ElementStore {
+class ElementStore extends ChangeNotifier {
+  void remove(String word) {
+    if (records.remove(word) != null) notifyListeners();
+  }
+
   final Map<String, ElementRecord> records = {};
   final Map<Object, List<ElementSource>> sources = {};
   ElementRecord add(String text, {bool replaceTags = false}) {
@@ -164,6 +168,32 @@ void showElementMetadata(BuildContext context, String word) {
         ),
       ),
       actions: [
+        TextButton(
+          onPressed: () async {
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                title: const Text('원소를 삭제할까요?'),
+                content: const Text('모든 원소 목록에서 삭제합니다. 문단과 프로젝트의 글은 유지됩니다.'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('취소'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text('삭제'),
+                  ),
+                ],
+              ),
+            );
+            if (confirmed == true && context.mounted) {
+              elements.remove(word);
+              Navigator.pop(context);
+            }
+          },
+          child: const Text('원소 삭제'),
+        ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('닫기'),

@@ -4,6 +4,37 @@ import 'package:notebox/main.dart';
 import 'package:notebox/features/inbox/workspace_menu.dart';
 
 void main() {
+  testWidgets('desktop menu hides into left modal and pins again', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(const MyApp());
+    expect(
+      tester.widget<WorkspaceMenu>(find.byType(WorkspaceMenu)).embedded,
+      isTrue,
+    );
+    await tester.tap(find.byTooltip('메뉴 숨기기').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(WorkspaceMenu), findsNothing);
+    await tester.tap(find.byTooltip('메뉴 열기'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<WorkspaceMenu>(find.byType(WorkspaceMenu)).embedded,
+      isFalse,
+    );
+    expect(tester.getTopLeft(find.byType(Dialog)).dx, lessThan(100));
+    await tester.tap(find.byTooltip('메뉴 고정하기'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<WorkspaceMenu>(find.byType(WorkspaceMenu)).embedded,
+      isTrue,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('menu opens and launches paragraph editor', (tester) async {
     await tester.pumpWidget(const MyApp());
     await tester.tap(find.byTooltip('메뉴 열기'));
@@ -53,6 +84,8 @@ void main() {
       ),
     );
     expect(tester.getTopLeft(find.text('메인')), before);
+    await tester.ensureVisible(find.text('프로젝트 29'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('프로젝트 29'));
     await tester.pumpAndSettle();
     expect(selected, 29);

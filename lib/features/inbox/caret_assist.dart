@@ -29,7 +29,7 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
   List<String> _matches = [];
   int _selected = 0;
   String _query = '';
-  final _listScroll = ScrollController();
+  bool _controlling = false;
   bool get _desktop =>
       MediaQuery.sizeOf(context).width >= 760 &&
       MediaQuery.viewInsetsOf(context).bottom == 0;
@@ -40,6 +40,10 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
   }
 
   bool _key(KeyEvent event) {
+    if (event is KeyUpEvent && !HardwareKeyboard.instance.isControlPressed) {
+      _controlling = false;
+      _entry?.markNeedsBuild();
+    }
     if (!mounted ||
         !widget.focus.hasFocus ||
         !_desktop ||
@@ -49,10 +53,14 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
       return false;
     }
     final keyboard = HardwareKeyboard.instance;
-    if (keyboard.isControlPressed ||
-        keyboard.isMetaPressed ||
+    if (keyboard.isMetaPressed ||
         keyboard.isAltPressed ||
         keyboard.isShiftPressed) {
+      return false;
+    }
+    if (!keyboard.isControlPressed) {
+      _controlling = false;
+      _entry?.markNeedsBuild();
       return false;
     }
     final composing = widget.controller.value.composing;
@@ -63,21 +71,22 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
       return true;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
-        event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      _selected =
-          (_selected +
-              (event.logicalKey == LogicalKeyboardKey.arrowDown ? 1 : -1)) %
-          _matches.length;
+        event.logicalKey == LogicalKeyboardKey.arrowUp ||
+        event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+        event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      final forward =
+          event.logicalKey == LogicalKeyboardKey.arrowDown ||
+          event.logicalKey == LogicalKeyboardKey.arrowRight;
+      _selected = _controlling
+          ? (_selected + (forward ? 1 : -1)) % _matches.length
+          : (forward ? 0 : _matches.length - 1);
+      _controlling = true;
       _entry?.markNeedsBuild();
-      if (_listScroll.hasClients) {
-        _listScroll.jumpTo(
-          (_selected * 32.0).clamp(0.0, _listScroll.position.maxScrollExtent),
-        );
-      }
       return true;
     }
-    if (event.logicalKey == LogicalKeyboardKey.enter ||
-        event.logicalKey == LogicalKeyboardKey.space) {
+    if (_controlling &&
+        (event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.space)) {
       _choose(_matches[_selected]);
       return true;
     }
@@ -134,7 +143,10 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
       final value = widget.controller.value;
       final query = completionPrefix(value, widget.words);
       final matches = wordSuggestions(widget.words, query);
-      if (_query != query) _selected = 0;
+      if (_query != query) {
+        _selected = 0;
+        _controlling = false;
+      }
       _query = query;
       _matches = matches;
       if (_selected >= matches.length) _selected = 0;
@@ -183,99 +195,61 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
             child: Material(
               key: const ValueKey("assist-popup"),
               elevation: 6,
-              borderRadius: BorderRadius.circular(_desktop ? 8 : 18),
+              borderRadius: BorderRadius.circular(18),
               clipBehavior: Clip.antiAlias,
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: height),
                 child: NotificationListener<ScrollNotification>(
                   onNotification: (_) => true,
-                  child: _desktop
-                      ? SizedBox(
-                          height: (matches.length * 32.0).clamp(32.0, height),
-                          child: ListView.builder(
-                            controller: _listScroll,
-                            padding: EdgeInsets.zero,
-                            itemExtent: 32,
-                            itemCount: matches.length,
-                            itemBuilder: (context, index) => Material(
-                              color: index == _selected
-                                  ? Theme.of(context)
-                                        .colorScheme
-                                        .secondaryContainer
-                                  : Colors.transparent,
-                              child: InkWell(
-                                key: ValueKey('suggestion-${matches[index]}'),
-                                onTap: () => _choose(matches[index]),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                  ),
-                                  child: Align(
-                                    alignment: AlignmentDirectional.centerStart,
-                                    child: Text(
-                                      matches[index],
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: wordColor(
-                                          context,
-                                          matches[index],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  '원소 어시스트',
+                                  style: TextStyle(fontSize: 11),
                                 ),
                               ),
-                            ),
+                              IconButton(
+                                tooltip: '후보 닫기',
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () {
+                                  _dismissed = widget.controller.text;
+                                  _hide();
+                                },
+                                icon: const Icon(Icons.close, size: 16),
+                              ),
+                            ],
                           ),
-                        )
-                      : SingleChildScrollView(
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Expanded(
-                                      child: Text(
-                                        '원소 어시스트',
-                                        style: TextStyle(fontSize: 11),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      tooltip: '후보 닫기',
-                                      visualDensity: VisualDensity.compact,
-                                      onPressed: () {
-                                        _dismissed = widget.controller.text;
-                                        _hide();
-                                      },
-                                      icon: const Icon(Icons.close, size: 16),
-                                    ),
-                                  ],
-                                ),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
-                                  children: matches
-                                      .map(
-                                        (word) => WordBadge(
-                                          key: ValueKey('suggestion-$word'),
-                                          word: word,
-                                          onTap: () {
-                                            widget.onWord(word);
-                                            _dismissed = widget.controller.text;
-                                            _hide();
-                                          },
-                                        ),
-                                      )
-                                      .toList(),
-                                ),
-                              ],
-                            ),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: matches
+                                .map(
+                                  (word) => WordBadge(
+                                    key: ValueKey('suggestion-$word'),
+                                    word: word,
+                                    selected:
+                                        _controlling &&
+                                        matches.indexOf(word) == _selected,
+                                    onTap: () {
+                                      widget.onWord(word);
+                                      _dismissed = widget.controller.text;
+                                      _hide();
+                                    },
+                                  ),
+                                )
+                                .toList(),
                           ),
-                        ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -288,7 +262,6 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    _listScroll.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _scrollObserver?.removeListener(_scrolled);
     widget.controller.removeListener(_update);

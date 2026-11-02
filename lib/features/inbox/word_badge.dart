@@ -39,15 +39,24 @@ Color wordColor(BuildContext context, String word) {
 }
 
 class WordBadge extends StatelessWidget {
-  const WordBadge({super.key, required this.word, required this.onTap});
+  const WordBadge({
+    super.key,
+    required this.word,
+    required this.onTap,
+    this.selected = false,
+    this.onLongPress,
+  });
   final String word;
   final VoidCallback onTap;
+  final bool selected;
+  final VoidCallback? onLongPress;
   @override
   Widget build(BuildContext context) {
     final hue = _wordHues.putIfAbsent(word, () => _random.nextDouble() * 360);
     final dark = Theme.of(context).brightness == Brightness.dark;
     return TextButton(
       onPressed: onTap,
+      onLongPress: onLongPress,
       style: TextButton.styleFrom(
         backgroundColor: HSLColor.fromAHSL(
           1,
@@ -64,7 +73,14 @@ class WordBadge extends StatelessWidget {
         minimumSize: const Size(0, 30),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: const StadiumBorder(),
+        shape: StadiumBorder(
+          side: selected
+              ? BorderSide(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 2,
+                )
+              : BorderSide.none,
+        ),
         textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
       ),
       child: Text(word),

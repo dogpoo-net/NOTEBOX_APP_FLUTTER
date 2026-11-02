@@ -1,3 +1,5 @@
+import 'project_folders.dart';
+
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,7 +20,13 @@ class Note {
 }
 
 class WorkspaceSnapshot {
-  WorkspaceSnapshot(this.notes, this.records, this.colors);
+  WorkspaceSnapshot(
+    this.notes,
+    this.records,
+    this.colors, [
+    this.folders = const [],
+  ]);
+  final List<String> folders;
   final List<Note> notes;
   final List<ElementRecord> records;
   final Map<String, double> colors;
@@ -28,6 +36,7 @@ class WorkspaceSnapshot {
   };
   static String encode(List<Note> notes) => jsonEncode({
     'version': 1,
+    'folders': projectFolders,
     'elements': elements.records.values
         .map(
           (r) => {
@@ -49,6 +58,7 @@ class WorkspaceSnapshot {
                 ? null
                 : {
                     'name': n.project!.name,
+                    'folder': n.project!.folder,
                     'words': n.project!.words,
                     'paragraphs': n.project!.paragraphs.map(paragraph).toList(),
                   },
@@ -98,6 +108,7 @@ class WorkspaceSnapshot {
           paragraphs(p['paragraphs']),
           (p['words'] as List).cast<String>(),
           name: p['name'] as String,
+          folder: p['folder'] as String?,
         );
         note.paragraphs = note.project!.paragraphs;
         note.content = note.paragraphs!.map((p) => p.text).join('\n\n');
@@ -111,10 +122,21 @@ class WorkspaceSnapshot {
       }
       return MapEntry(key, hue);
     });
-    return WorkspaceSnapshot(notes, records, colors);
+    final folders = ((data['folders'] ?? []) as List)
+        .cast<String>()
+        .toSet()
+        .toList();
+    for (final n in notes) {
+      final f = n.project?.folder;
+      if (f != null && !folders.contains(f)) folders.add(f);
+    }
+    return WorkspaceSnapshot(notes, records, colors, folders);
   }
 
   void apply() {
+    projectFolders
+      ..clear()
+      ..addAll(folders);
     elements.clear();
     for (final record in records) {
       elements.records[record.text] = record;

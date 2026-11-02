@@ -1,3 +1,5 @@
+import 'project_folders.dart';
+
 import 'package:flutter/material.dart';
 
 import 'paragraph_editor.dart';
@@ -6,9 +8,14 @@ import 'element_store.dart';
 import 'hashtags.dart';
 
 class WritingProject {
-  WritingProject(this.paragraphs, List<String> words, {required this.name})
-    : words = List.of(words);
+  WritingProject(
+    this.paragraphs,
+    List<String> words, {
+    required this.name,
+    this.folder,
+  }) : words = List.of(words);
   String name;
+  String? folder;
   List<Paragraph> paragraphs;
   final List<String> words;
   String get title => name;
@@ -26,7 +33,37 @@ class _ProjectPageState extends State<ProjectPage> {
   int _tab = 0;
   final _word = TextEditingController();
   @override
+  void initState() {
+    super.initState();
+    elements.addListener(_refresh);
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _move() async {
+    final folder = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('프로젝트 폴더'),
+        children: [
+          for (final name in ['', ...projectFolders])
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, name),
+              child: Text(name.isEmpty ? '미분류' : name),
+            ),
+        ],
+      ),
+    );
+    if (folder == null || !mounted) return;
+    setState(() => widget.project.folder = folder.isEmpty ? null : folder);
+    await widget.onChanged?.call();
+  }
+
+  @override
   void dispose() {
+    elements.removeListener(_refresh);
     _word.dispose();
     super.dispose();
   }
@@ -70,6 +107,11 @@ class _ProjectPageState extends State<ProjectPage> {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
+          IconButton(
+            onPressed: _move,
+            tooltip: '폴더 이동',
+            icon: const Icon(Icons.drive_file_move_outline),
+          ),
           IconButton(
             onPressed: _edit,
             tooltip: '프로젝트 편집',

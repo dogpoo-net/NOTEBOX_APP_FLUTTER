@@ -1,3 +1,5 @@
+import 'project_folders.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
@@ -35,12 +37,15 @@ class _InboxPageState extends State<InboxPage> {
   final _focus = FocusNode();
   final List<Note> _notes = [];
   String _query = '';
+  bool _menuVisible = true;
   Note? _editing;
   String? _storageError;
   bool _restoreBlocked = false;
   @override
   void initState() {
     super.initState();
+    projectFolders.clear();
+    elements.addListener(_elementDeleted);
     try {
       final raw = widget.storage?.read();
       if (raw != null) {
@@ -51,6 +56,57 @@ class _InboxPageState extends State<InboxPage> {
     } catch (_) {
       _restoreBlocked = true;
       _storageError = '저장 데이터를 읽지 못했습니다. 원본을 보존합니다. JSON 백업으로 복원해주세요.';
+    }
+  }
+
+  void _elementDeleted() {
+    setState(() {
+      _notes.removeWhere(
+        (n) =>
+            n.project == null &&
+            n.paragraphs == null &&
+            !elements.records.containsKey(n.content),
+      );
+      for (final note in _notes) {
+        note.project?.words.removeWhere(
+          (w) => !elements.records.containsKey(w),
+        );
+      }
+      if (_editing != null && !_notes.contains(_editing)) {
+        _editing = null;
+        _draft.clear();
+      }
+    });
+    _persist();
+  }
+
+  Future<void> _createFolder() async {
+    var folderName = '';
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('폴더 만들기'),
+        content: TextField(
+          onChanged: (value) => folderName = value,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: '폴더 이름'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, folderName.trim()),
+            child: const Text('만들기'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || name == null || name.isEmpty) return;
+    if (!projectFolders.contains(name)) {
+      setState(() => projectFolders.add(name));
+      await _persist();
     }
   }
 
@@ -90,6 +146,7 @@ class _InboxPageState extends State<InboxPage> {
       await widget.storage?.clear();
       if (!mounted) return;
       setState(() {
+        projectFolders.clear();
         elements.clear();
         restoreWordColors({});
         _notes.clear();
@@ -190,6 +247,7 @@ class _InboxPageState extends State<InboxPage> {
 
   @override
   void dispose() {
+    elements.removeListener(_elementDeleted);
     _draft.dispose();
     _focus.dispose();
     super.dispose();
@@ -322,10 +380,30 @@ class _InboxPageState extends State<InboxPage> {
       context: context,
       builder: (_) => WorkspaceMenu(
         projects: projects.map((n) => n.title).toList(),
+        onPin: MediaQuery.sizeOf(context).width >= 1000
+            ? () {
+                Navigator.pop(context);
+                setState(() => _menuVisible = true);
+              }
+            : null,
         tags: tags,
+        folders: projectFolders,
+        projectFolderNames: projects.map((n) => n.project!.folder).toList(),
       ),
     );
+    await _selectMenu(choice, projects, tags);
+  }
+
+  Future<void> _selectMenu(
+    int? choice,
+    List<Note> projects,
+    List<String> tags,
+  ) async {
     if (!mounted || choice == null || choice == -1) return;
+    if (choice == WorkspaceMenu.createFolder) {
+      await _createFolder();
+      return;
+    }
     if (choice <= -3) {
       await Navigator.push(
         context,
@@ -449,6 +527,7 @@ class _InboxPageState extends State<InboxPage> {
               )
               .map(
                 (word) => WordBadge(
+                  onLongPress: () => showElementMetadata(context, word),
                   word: word,
                   onTap: () {
                     final notes = _notes.where(
@@ -508,8 +587,12 @@ class _InboxPageState extends State<InboxPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          tooltip: '메뉴 열기',
-          onPressed: _menu,
+          tooltip: MediaQuery.sizeOf(context).width >= 1000 && _menuVisible
+              ? '메뉴 숨기기'
+              : '메뉴 열기',
+          onPressed: MediaQuery.sizeOf(context).width >= 1000 && _menuVisible
+              ? () => setState(() => _menuVisible = false)
+              : _menu,
           icon: const Icon(Icons.grid_view_rounded),
         ),
         actions: [
@@ -552,97 +635,134 @@ class _InboxPageState extends State<InboxPage> {
         ),
         centerTitle: false,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1080),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('기록함', style: Theme.of(context).textTheme.headlineSmall),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      TextButton.icon(
-                        onPressed: () => _writeParagraphs(),
-                        icon: const Icon(Icons.subject, size: 18),
-                        label: const Text('문단 쓰기'),
-                      ),
-                      TextButton.icon(
-                        onPressed: _createProject,
-                        icon: const Icon(
-                          Icons.create_new_folder_outlined,
-                          size: 18,
+      body: Row(
+        children: [
+          if (MediaQuery.sizeOf(context).width >= 1000 && _menuVisible)
+            SafeArea(
+              child: WorkspaceMenu(
+                embedded: true,
+                onHide: () => setState(() => _menuVisible = false),
+                projects: _notes
+                    .where((n) => n.project != null)
+                    .map((n) => n.title)
+                    .toList(),
+                projectFolderNames: _notes
+                    .where((n) => n.project != null)
+                    .map((n) => n.project!.folder)
+                    .toList(),
+                folders: projectFolders,
+                tags: elements.tags,
+                onSelected: (choice) => _selectMenu(
+                  choice,
+                  _notes.where((n) => n.project != null).toList(),
+                  elements.tags,
+                ),
+              ),
+            ),
+          Expanded(
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1080),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '기록함',
+                          style: Theme.of(context).textTheme.headlineSmall,
                         ),
-                        label: const Text('프로젝트 생성'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      TextButton.icon(
-                        onPressed: _export,
-                        icon: const Icon(Icons.download_outlined, size: 18),
-                        label: const Text('JSON 백업'),
-                      ),
-                      TextButton.icon(
-                        onPressed: _import,
-                        icon: const Icon(Icons.upload_file_outlined, size: 18),
-                        label: const Text('백업 복원'),
-                      ),
-                      TextButton.icon(
-                        onPressed: _reset,
-                        icon: const Icon(Icons.delete_outline, size: 18),
-                        label: const Text('데이터 초기화'),
-                      ),
-                    ],
-                  ),
-                  LayoutBuilder(
-                    builder: (context, constraints) =>
-                        constraints.maxWidth >= 760
-                        ? Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(24),
-                                  child: _list(),
-                                ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            TextButton.icon(
+                              onPressed: () => _writeParagraphs(),
+                              icon: const Icon(Icons.subject, size: 18),
+                              label: const Text('문단 쓰기'),
+                            ),
+                            TextButton.icon(
+                              onPressed: _createProject,
+                              icon: const Icon(
+                                Icons.create_new_folder_outlined,
+                                size: 18,
                               ),
-                              const SizedBox(width: 24),
-                              Expanded(child: _composer()),
-                            ],
-                          )
-                        : Column(
-                            children: [
-                              _composer(),
-                              const SizedBox(height: 24),
-                              _list(),
-                            ],
+                              label: const Text('프로젝트 생성'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            TextButton.icon(
+                              onPressed: _export,
+                              icon: const Icon(
+                                Icons.download_outlined,
+                                size: 18,
+                              ),
+                              label: const Text('JSON 백업'),
+                            ),
+                            TextButton.icon(
+                              onPressed: _import,
+                              icon: const Icon(
+                                Icons.upload_file_outlined,
+                                size: 18,
+                              ),
+                              label: const Text('백업 복원'),
+                            ),
+                            TextButton.icon(
+                              onPressed: _reset,
+                              icon: const Icon(Icons.delete_outline, size: 18),
+                              label: const Text('데이터 초기화'),
+                            ),
+                          ],
+                        ),
+                        LayoutBuilder(
+                          builder: (context, constraints) =>
+                              constraints.maxWidth >= 760
+                              ? Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(24),
+                                        child: _list(),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 24),
+                                    Expanded(child: _composer()),
+                                  ],
+                                )
+                              : Column(
+                                  children: [
+                                    _composer(),
+                                    const SizedBox(height: 24),
+                                    _list(),
+                                  ],
+                                ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          _storageError ??
+                              (widget.storage == null
+                                  ? '기기 저장을 사용할 수 없습니다 · JSON 백업을 이용해주세요'
+                                  : '이 브라우저에 저장됨 · 다른 기기로 옮길 때 JSON 백업을 사용하세요'),
+                          style: TextStyle(
+                            color: colors.onSurfaceVariant,
+                            fontSize: 12,
                           ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    _storageError ??
-                        (widget.storage == null
-                            ? '기기 저장을 사용할 수 없습니다 · JSON 백업을 이용해주세요'
-                            : '이 브라우저에 저장됨 · 다른 기기로 옮길 때 JSON 백업을 사용하세요'),
-                    style: TextStyle(
-                      color: colors.onSurfaceVariant,
-                      fontSize: 12,
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
