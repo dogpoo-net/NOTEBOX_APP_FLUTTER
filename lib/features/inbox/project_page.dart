@@ -22,7 +22,15 @@ class WritingProject {
 }
 
 class ProjectPage extends StatefulWidget {
-  const ProjectPage({super.key, required this.project, this.onChanged});
+  const ProjectPage({
+    super.key,
+    required this.project,
+    this.onChanged,
+    this.initialParagraph,
+    this.initialOffset,
+  });
+  final int? initialParagraph;
+  final int? initialOffset;
   final Future<void> Function()? onChanged;
   final WritingProject project;
   @override
@@ -88,14 +96,7 @@ class _ProjectPageState extends State<ProjectPage> {
   @override
   Widget build(BuildContext context) {
     final project = widget.project;
-    elements.sources[project] = [
-      for (var i = 0; i < project.paragraphs.length; i++)
-        ElementSource(
-          '${project.name} · 문단 ${i + 1}',
-          project.paragraphs[i].text,
-          isProject: true,
-        ),
-    ];
+    elements.indexProject(project);
     final usedWords = project.paragraphs
         .expand((p) => elements.matches(p.text).map((h) => h.word))
         .toSet();
@@ -123,107 +124,113 @@ class _ProjectPageState extends State<ProjectPage> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 800),
-            child: ListView(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              children: [
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final entry in ['미리보기', '원소', '문단'].asMap().entries)
-                      ChoiceChip(
-                        label: Text(entry.value),
-                        selected: _tab == entry.key,
-                        onSelected: (_) => setState(() => _tab = entry.key),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final entry in ['미리보기', '원소', '문단'].asMap().entries)
+                        ChoiceChip(
+                          label: Text(entry.value),
+                          selected: _tab == entry.key,
+                          onSelected: (_) => setState(() => _tab = entry.key),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  if (_tab == 0) ...[
+                    const Text('미리보기', style: TextStyle(fontSize: 12)),
+                    const SizedBox(height: 20),
+                    for (final entry in project.paragraphs.asMap().entries)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: ElementText(
+                          entry.value.text,
+                          focusOffset: widget.initialParagraph == entry.key
+                              ? widget.initialOffset
+                              : null,
+                          style: TextStyle(
+                            height: 1.7,
+                            fontSize: entry.value.role == ParagraphRole.title
+                                ? 30
+                                : entry.value.role == ParagraphRole.subtitle
+                                ? 22
+                                : 16,
+                            fontWeight: entry.value.role == ParagraphRole.body
+                                ? FontWeight.normal
+                                : FontWeight.w600,
+                          ),
+                        ),
                       ),
                   ],
-                ),
-                const SizedBox(height: 24),
-                if (_tab == 0) ...[
-                  const Text('미리보기', style: TextStyle(fontSize: 12)),
-                  const SizedBox(height: 20),
-                  for (final p in project.paragraphs)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 20),
-                      child: ElementText(
-                        p.text,
-                        style: TextStyle(
-                          height: 1.7,
-                          fontSize: p.role == ParagraphRole.title
-                              ? 30
-                              : p.role == ParagraphRole.subtitle
-                              ? 22
-                              : 16,
-                          fontWeight: p.role == ParagraphRole.body
-                              ? FontWeight.normal
-                              : FontWeight.w600,
-                        ),
+                  if (_tab == 1) ...[
+                    const Text('이 프로젝트에서 사용한 원소'),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: usedWords
+                          .map(
+                            (w) => WordBadge(
+                              word: w,
+                              onTap: () {
+                                showElementMetadata(context, w);
+                              },
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: _word,
+                      decoration: const InputDecoration(
+                        labelText: '원소단어 추가',
+                        hintText: '원소 내용 #태그',
                       ),
                     ),
-                ],
-                if (_tab == 1) ...[
-                  const Text('이 프로젝트에서 사용한 원소'),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: usedWords
-                        .map(
-                          (w) => WordBadge(
-                            word: w,
-                            onTap: () {
-                              showElementMetadata(context, w);
-                            },
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _word,
-                    decoration: const InputDecoration(
-                      labelText: '원소단어 추가',
-                      hintText: '원소 내용 #태그',
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: () {
+                        final word = _word.text.trim();
+                        if (parseTaggedInput(word).text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('태그와 함께 원소 내용을 입력해주세요.'),
+                            ),
+                          );
+                          return;
+                        }
+                        setState(() {
+                          elements.add(word);
+                          _word.clear();
+                          widget.onChanged?.call();
+                        });
+                      },
+                      child: const Text('글로벌 원소 저장'),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () {
-                      final word = _word.text.trim();
-                      if (parseTaggedInput(word).text.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('태그와 함께 원소 내용을 입력해주세요.'),
+                  ],
+                  if (_tab == 2) ...[
+                    for (var i = 0; i < project.paragraphs.length; i++)
+                      Card(
+                        child: ListTile(
+                          title: Text(project.paragraphs[i].text),
+                          subtitle: Text(
+                            '문단 ${i + 1} · ${['제목', '부제', '본문'][project.paragraphs[i].role.index]}',
                           ),
-                        );
-                        return;
-                      }
-                      setState(() {
-                        elements.add(word);
-                        _word.clear();
-                        widget.onChanged?.call();
-                      });
-                    },
-                    child: const Text('글로벌 원소 저장'),
-                  ),
-                ],
-                if (_tab == 2) ...[
-                  for (var i = 0; i < project.paragraphs.length; i++)
-                    Card(
-                      child: ListTile(
-                        title: Text(project.paragraphs[i].text),
-                        subtitle: Text(
-                          '문단 ${i + 1} · ${['제목', '부제', '본문'][project.paragraphs[i].role.index]}',
+                          onTap: _edit,
                         ),
-                        onTap: _edit,
                       ),
-                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  const Text(
+                    '저장한 프로젝트는 이 기기에 보관됩니다.',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ],
-                const SizedBox(height: 24),
-                const Text(
-                  '저장한 프로젝트는 이 기기에 보관됩니다.',
-                  style: TextStyle(fontSize: 12),
-                ),
-              ],
+              ),
             ),
           ),
         ),

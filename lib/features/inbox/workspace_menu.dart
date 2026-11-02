@@ -80,9 +80,22 @@ class WorkspaceMenu extends StatelessWidget {
       const Divider(indent: 16, endIndent: 16),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        child: Text(
-          '프로젝트 ${projects.length}',
-          style: Theme.of(context).textTheme.labelMedium,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '프로젝트 ${projects.length}',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            ),
+            IconButton(
+              tooltip: '폴더 만들기',
+              visualDensity: VisualDensity.compact,
+              iconSize: 18,
+              onPressed: () => _select(context, createFolder),
+              icon: const Icon(Icons.create_new_folder_outlined),
+            ),
+          ],
         ),
       ),
       Expanded(
@@ -96,11 +109,6 @@ class WorkspaceMenu extends StatelessWidget {
                   padding: EdgeInsets.all(16),
                   child: Text('아직 프로젝트가 없어요'),
                 ),
-              ListTile(
-                leading: const Icon(Icons.create_new_folder_outlined),
-                title: const Text('폴더 만들기'),
-                onTap: () => _select(context, createFolder),
-              ),
               for (final folder in folders)
                 ExpansionTile(
                   leading: const Icon(Icons.folder_outlined),

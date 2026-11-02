@@ -47,6 +47,7 @@ class _InboxPageState extends State<InboxPage> {
     super.initState();
     projectFolders.clear();
     elements.addListener(_elementDeleted);
+    elements.onProjectChanged = _persist;
     try {
       final raw = widget.storage?.read();
       if (raw != null) {
@@ -249,6 +250,7 @@ class _InboxPageState extends State<InboxPage> {
   @override
   void dispose() {
     elements.removeListener(_elementDeleted);
+    elements.onProjectChanged = null;
     _draft.dispose();
     _focus.dispose();
     super.dispose();
@@ -618,6 +620,9 @@ class _InboxPageState extends State<InboxPage> {
 
   @override
   Widget build(BuildContext context) {
+    for (final note in _notes) {
+      if (note.project != null) elements.indexProject(note.project!);
+    }
     elements.sources[this] = [
       for (var i = 0; i < _notes.length; i++)
         if (_notes[i].paragraphs != null && _notes[i].project == null)

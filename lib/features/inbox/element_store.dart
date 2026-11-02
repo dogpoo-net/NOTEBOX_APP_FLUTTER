@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
+
+import 'project_page.dart';
 
 import 'word_badge.dart';
 import 'hashtags.dart';
@@ -24,13 +25,35 @@ class ElementRecord {
 }
 
 class ElementSource {
-  ElementSource(this.label, this.text, {this.isProject = false});
+  ElementSource(
+    this.label,
+    this.text, {
+    this.isProject = false,
+    this.project,
+    this.paragraphIndex,
+  });
+  final WritingProject? project;
+  final int? paragraphIndex;
   final bool isProject;
   final String label;
   final String text;
 }
 
 class ElementStore extends ChangeNotifier {
+  Future<void> Function()? onProjectChanged;
+  void indexProject(WritingProject project) {
+    sources[project] = [
+      for (var i = 0; i < project.paragraphs.length; i++)
+        ElementSource(
+          '${project.name} · 문단 ${i + 1}',
+          project.paragraphs[i].text,
+          isProject: true,
+          project: project,
+          paragraphIndex: i,
+        ),
+    ];
+  }
+
   void remove(String word) {
     if (records.remove(word) != null) notifyListeners();
   }
@@ -84,14 +107,14 @@ final elements = ElementStore();
 void showElementMetadata(BuildContext context, String word) {
   final element = elements.records[word];
   if (element == null) return;
-  final uses = <String, int>{};
+  final uses = <ElementSource, int>{};
   final together = <String, int>{};
   for (final source in elements.sources.values.expand((s) => s)) {
     if (!source.isProject) continue;
     final hits = elements.matches(source.text);
     final count = hits.where((h) => h.word == word).length;
     if (count == 0) continue;
-    uses.update(source.label, (v) => v + count, ifAbsent: () => count);
+    uses[source] = count;
     for (final other
         in hits.map((h) => h.word).toSet().where((w) => w != word)) {
       together.update(other, (v) => v + 1, ifAbsent: () => 1);
@@ -142,7 +165,39 @@ void showElementMetadata(BuildContext context, String word) {
               for (final use in uses.entries)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: Text('${use.key} · ${use.value}회'),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${use.key.label} · ${use.value}회'),
+                      if (use.key.project != null)
+                        for (final hit
+                            in elements
+                                .matches(use.key.text)
+                                .where((h) => h.word == word))
+                          TextButton.icon(
+                            icon: const Icon(Icons.arrow_outward, size: 16),
+                            label: Text(
+                              '${use.key.text.substring(0, hit.start).split(RegExp(r'[.!?。\n]')).last}$word${use.key.text.substring(hit.end).split(RegExp(r'[.!?。\n]')).first}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onPressed: () {
+                              final navigator = Navigator.of(context);
+                              navigator.pop();
+                              navigator.push(
+                                MaterialPageRoute(
+                                  builder: (_) => ProjectPage(
+                                    project: use.key.project!,
+                                    initialParagraph: use.key.paragraphIndex,
+                                    initialOffset: hit.start,
+                                    onChanged: elements.onProjectChanged,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                    ],
+                  ),
                 ),
               const Divider(height: 28),
               Text('함께 쓰인 원소', style: Theme.of(context).textTheme.labelMedium),
@@ -203,55 +258,95 @@ void showElementMetadata(BuildContext context, String word) {
   );
 }
 
-class ElementText extends StatefulWidget {
-  const ElementText(this.text, {super.key, this.style});
+class ElementText extends StatelessWidget {
+  const ElementText(this.text, {super.key, this.style, this.focusOffset});
   final String text;
   final TextStyle? style;
-  @override
-  State<ElementText> createState() => _ElementTextState();
-}
-
-class _ElementTextState extends State<ElementText> {
-  final List<TapGestureRecognizer> _recognizers = [];
-  void _clear() {
-    for (final r in _recognizers) {
-      r.dispose();
-    }
-    _recognizers.clear();
-  }
-
-  @override
-  void dispose() {
-    _clear();
-    super.dispose();
-  }
-
+  final int? focusOffset;
   @override
   Widget build(BuildContext context) {
-    _clear();
     final spans = <InlineSpan>[];
     var cursor = 0;
-    for (final hit in elements.matches(widget.text)) {
-      spans.add(TextSpan(text: widget.text.substring(cursor, hit.start)));
-      final recognizer = TapGestureRecognizer()
-        ..onTap = () => showElementMetadata(context, hit.word);
-      _recognizers.add(recognizer);
+    for (final hit in elements.matches(text)) {
+      spans.add(TextSpan(text: text.substring(cursor, hit.start)));
       spans.add(
-        TextSpan(
-          text: hit.word,
-          recognizer: recognizer,
-          style: TextStyle(
-            color: wordColor(context, hit.word),
-            decoration: TextDecoration.underline,
-            decorationStyle: TextDecorationStyle.dotted,
-            decorationColor: wordBackgroundColor(context, hit.word),
-            decorationThickness: 2,
+        WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: ElementLink(
+            key: ValueKey('element-${hit.start}'),
+            word: hit.word,
+            style: style,
+            autofocus: focusOffset == hit.start,
           ),
         ),
       );
       cursor = hit.end;
     }
-    spans.add(TextSpan(text: widget.text.substring(cursor)));
-    return Text.rich(TextSpan(children: spans), style: widget.style);
+    spans.add(TextSpan(text: text.substring(cursor)));
+    return Text.rich(TextSpan(children: spans), style: style);
   }
+}
+
+class ElementLink extends StatefulWidget {
+  const ElementLink({
+    super.key,
+    required this.word,
+    this.style,
+    this.autofocus = false,
+  });
+  final String word;
+  final TextStyle? style;
+  final bool autofocus;
+  @override
+  State<ElementLink> createState() => _ElementLinkState();
+}
+
+class _ElementLinkState extends State<ElementLink> {
+  bool _focused = false;
+  void _focus(bool value) {
+    setState(() => _focused = value);
+    if (value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Scrollable.ensureVisible(context, alignment: .4);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    link: true,
+    child: Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        autofocus: widget.autofocus,
+        onFocusChange: _focus,
+        borderRadius: BorderRadius.circular(6),
+        onTap: () => showElementMetadata(context, widget.word),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: _focused
+                  ? wordColor(context, widget.word)
+                  : Colors.transparent,
+              width: 1,
+            ),
+          ),
+          child: Text(
+            widget.word,
+            style: (widget.style ?? DefaultTextStyle.of(context).style)
+                .copyWith(
+                  color: wordColor(context, widget.word),
+                  decoration: TextDecoration.underline,
+                  decorationStyle: TextDecorationStyle.dotted,
+                  decorationColor: wordBackgroundColor(context, widget.word),
+                  decorationThickness: 2,
+                ),
+          ),
+        ),
+      ),
+    ),
+  );
 }

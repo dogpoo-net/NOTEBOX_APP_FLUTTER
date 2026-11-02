@@ -55,24 +55,18 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('미리보기'));
     await tester.pumpAndSettle();
-    final rich = tester.widget<Text>(
+    final linkText = tester.widget<Text>(
       find.descendant(
-        of: find.byType(ElementText),
+        of: find.byType(ElementLink),
         matching: find.byType(Text),
       ),
     );
-    final span = (rich.textSpan! as TextSpan).children!
-        .whereType<TextSpan>()
-        .firstWhere((s) => s.recognizer != null);
-    expect(span.style!.decorationStyle, TextDecorationStyle.dotted);
+    expect(linkText.style!.decorationStyle, TextDecorationStyle.dotted);
     expect(
-      span.style!.decorationColor,
+      linkText.style!.decorationColor,
       wordBackgroundColor(tester.element(find.byType(ElementText)), '작은 생각'),
     );
-    await tester.tapAt(
-      tester.getTopLeft(find.text('작은 생각', findRichText: true)) +
-          const Offset(20, 12),
-    );
+    await tester.tap(find.byType(ElementLink));
     await tester.pumpAndSettle();
     expect(find.text('사용 1회 · 1개 위치'), findsOneWidget);
   });

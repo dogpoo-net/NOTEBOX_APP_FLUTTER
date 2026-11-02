@@ -145,14 +145,7 @@ class WorkspaceSnapshot {
     for (final note in notes) {
       final project = note.project;
       if (project != null) {
-        elements.sources[project] = [
-          for (var i = 0; i < project.paragraphs.length; i++)
-            ElementSource(
-              '${project.name} · 문단 ${i + 1}',
-              project.paragraphs[i].text,
-              isProject: true,
-            ),
-        ];
+        elements.indexProject(project);
       }
     }
   }
