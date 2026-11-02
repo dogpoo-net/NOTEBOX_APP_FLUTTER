@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'paragraph_editor.dart';
+import 'word_badge.dart';
 
 class Note {
   Note(this.content) : createdAt = DateTime.now();
@@ -134,11 +135,6 @@ class _InboxPageState extends State<InboxPage> {
               ),
             ],
           ),
-          TextButton.icon(
-            onPressed: () => _writeParagraphs(),
-            icon: const Icon(Icons.subject),
-            label: const Text('문단 쓰기'),
-          ),
           const SizedBox(height: 14),
           TextField(
             controller: _draft,
@@ -223,7 +219,25 @@ class _InboxPageState extends State<InboxPage> {
               ],
             ),
           ),
-        for (final note in visible)
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: visible
+              .where(
+                (n) =>
+                    n.paragraphs == null &&
+                    !n.content.trim().contains(RegExp(r'\s')),
+              )
+              .map(
+                (note) => WordBadge(word: note.title, onTap: () => _open(note)),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 10),
+        for (final note in visible.where(
+          (n) =>
+              n.paragraphs != null || n.content.trim().contains(RegExp(r'\s')),
+        ))
           Card(
             elevation: 0,
             clipBehavior: Clip.antiAlias,
@@ -336,6 +350,12 @@ class _InboxPageState extends State<InboxPage> {
                   style: TextStyle(color: colors.onSurfaceVariant),
                 ),
                 const SizedBox(height: 24),
+                TextButton.icon(
+                  onPressed: () => _writeParagraphs(),
+                  icon: const Icon(Icons.subject),
+                  label: const Text('문단 쓰기'),
+                ),
+                const SizedBox(height: 12),
                 LayoutBuilder(
                   builder: (context, constraints) => constraints.maxWidth >= 760
                       ? Row(

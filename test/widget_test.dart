@@ -3,16 +3,35 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notebox/main.dart';
 
 void main() {
+  testWidgets('first syllable suggests and replaces only the current word', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.tap(find.text('문단 쓰기'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('paragraph-0')), '오늘의 관');
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('suggestion-관찰')));
+    await tester.tap(find.byKey(const ValueKey('suggestion-관찰')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('paragraph-0')))
+          .controller!
+          .text,
+      '오늘의 관찰 ',
+    );
+  });
   testWidgets('paragraph roles persist after saving and reopening', (
     tester,
   ) async {
     await tester.pumpWidget(const MyApp());
     await tester.tap(find.text('문단 쓰기'));
     await tester.pumpAndSettle();
-    expect(find.text('타이틀'), findsNothing);
+    expect(find.text('제목'), findsNothing);
     await tester.tap(find.text('관찰'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('타이틀'));
+    await tester.tap(find.text('제목'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('다음 문단'));
     await tester.pumpAndSettle();

@@ -46,7 +46,7 @@ class _MyAppState extends State<MyApp> {
           splashFactory: InkRipple.splashFactory,
           overlayColor: colors.onPrimary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(28),
           ),
         ),
       ),

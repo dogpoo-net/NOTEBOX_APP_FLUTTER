@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'word_badge.dart';
+
 enum ParagraphRole { title, subtitle, body }
 
 class Paragraph {
@@ -26,7 +28,8 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
   final List<FocusNode> _focus = [];
   int _active = 0;
   bool _dirty = false;
-  static const _labels = ['타이틀', '부제목', '본문'];
+  static const _labels = ['제목', '부제', '본문'];
+  List<String> get words => widget.words.isEmpty ? starterWords : widget.words;
 
   @override
   void initState() {
@@ -38,7 +41,11 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
   }
 
   void _add(Paragraph p) {
-    _controllers.add(TextEditingController(text: p.text));
+    _controllers.add(
+      TextEditingController(text: p.text)..addListener(() {
+        if (mounted) setState(() {});
+      }),
+    );
     _roles.add(p.role);
     _focus.add(FocusNode());
   }
@@ -54,10 +61,12 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
     super.dispose();
   }
 
-  void _insert(String word) {
+  void _insert(String word, {bool complete = false}) {
     final c = _controllers[_active];
     final selection = c.selection;
-    final start = selection.isValid ? selection.start : c.text.length;
+    final prefix = complete ? wordPrefix(c.value) : "";
+    final start =
+        (selection.isValid ? selection.start : c.text.length) - prefix.length;
     final end = selection.isValid ? selection.end : start;
     c.value = TextEditingValue(
       text: c.text.replaceRange(start, end, '$word '),
@@ -144,17 +153,12 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children:
-                        (widget.words.isEmpty
-                                ? ['관찰', '질문', '연결', '기억', '성장']
-                                : widget.words)
-                            .map(
-                              (word) => ActionChip(
-                                label: Text(word),
-                                onPressed: () => _insert(word),
-                              ),
-                            )
-                            .toList(),
+                    children: words
+                        .map(
+                          (word) =>
+                              WordBadge(word: word, onTap: () => _insert(word)),
+                        )
+                        .toList(),
                   ),
                   const SizedBox(height: 12),
                   const Text('단어를 누르거나 바로 써보세요. 쓰기 시작하면 문단의 역할을 고를 수 있어요.'),
@@ -198,30 +202,64 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
                           ),
                           if (_controllers[i].text.trim().isNotEmpty) ...[
                             const SizedBox(width: 8),
-                            Column(
-                              children: [
-                                for (final role in ParagraphRole.values)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 4),
-                                    child: ChoiceChip(
-                                      label: Text(_labels[role.index]),
-                                      selected: _roles[i] == role,
-                                      onSelected: (_) {
-                                        setState(() {
-                                          _roles[i] = role;
-                                          _active = i;
-                                          _dirty = true;
-                                        });
-                                        _focus[i].requestFocus();
-                                      },
+                            ToggleButtons(
+                              direction: Axis.vertical,
+                              borderRadius: BorderRadius.circular(16),
+                              constraints: const BoxConstraints(
+                                minWidth: 48,
+                                minHeight: 32,
+                              ),
+                              textStyle: const TextStyle(fontSize: 11),
+                              isSelected: ParagraphRole.values
+                                  .map((role) => role == _roles[i])
+                                  .toList(),
+                              onPressed: (index) {
+                                setState(() {
+                                  _roles[i] = ParagraphRole.values[index];
+                                  _active = i;
+                                  _dirty = true;
+                                });
+                                _focus[i].requestFocus();
+                              },
+                              children: _labels
+                                  .map(
+                                    (label) => Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      child: Text(label),
                                     ),
-                                  ),
-                              ],
+                                  )
+                                  .toList(),
                             ),
                           ],
                         ],
                       ),
                     ),
+                  if (wordPrefix(_controllers[_active].value).isNotEmpty) ...[
+                    const Text('원소단어 후보'),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: words
+                          .where(
+                            (word) => matchesWord(
+                              word,
+                              wordPrefix(_controllers[_active].value),
+                            ),
+                          )
+                          .map(
+                            (word) => WordBadge(
+                              key: ValueKey('suggestion-$word'),
+                              word: word,
+                              onTap: () => _insert(word, complete: true),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   OutlinedButton.icon(
                     onPressed: () {
                       setState(() {
