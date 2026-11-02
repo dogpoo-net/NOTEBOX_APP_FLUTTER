@@ -122,7 +122,7 @@ class _InboxPageState extends State<InboxPage> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
-                'Markdown으로 자유롭게',
+                '단어 하나부터, 편하게',
                 style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
               ),
               FilledButton.icon(
@@ -186,6 +186,7 @@ class _InboxPageState extends State<InboxPage> {
         for (final note in visible)
           Card(
             elevation: 0,
+            clipBehavior: Clip.antiAlias,
             color: colors.surfaceContainerLow,
             margin: const EdgeInsets.only(bottom: 10),
             child: ListTile(

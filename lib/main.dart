@@ -24,6 +24,9 @@ class _MyAppState extends State<MyApp> {
     );
     return ThemeData(
       useMaterial3: true,
+      splashFactory: InkRipple.splashFactory,
+      splashColor: colors.primary.withValues(alpha: 0.12),
+      highlightColor: colors.primary.withValues(alpha: 0.04),
       colorScheme: colors,
       scaffoldBackgroundColor: colors.surface,
       appBarTheme: AppBarTheme(
@@ -33,12 +36,15 @@ class _MyAppState extends State<MyApp> {
       ),
       cardTheme: CardThemeData(
         elevation: 0,
+        clipBehavior: Clip.antiAlias,
         color: colors.surfaceContainerLow,
         shape: border,
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size(48, 48),
+          splashFactory: InkRipple.splashFactory,
+          overlayColor: colors.onPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -49,15 +55,19 @@ class _MyAppState extends State<MyApp> {
         fillColor: colors.surfaceContainerHighest,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(
+            color: colors.outlineVariant.withValues(alpha: 0.45),
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(
+            color: colors.outlineVariant.withValues(alpha: 0.45),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: colors.primary, width: 2),
+          borderSide: BorderSide(color: colors.primary.withValues(alpha: 0.45)),
         ),
       ),
     );
