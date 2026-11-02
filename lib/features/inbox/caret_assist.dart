@@ -4,6 +4,14 @@ import 'package:flutter/services.dart';
 import 'word_badge.dart';
 
 /// Positions suggestions using the editable renderer's actual caret rectangle.
+double mobileAssistHeight(MediaQueryData media) =>
+    ((media.size.height -
+                media.viewInsets.bottom -
+                media.padding.vertical -
+                kToolbarHeight) *
+            .4)
+        .clamp(0.0, 180.0);
+
 class CaretAssist extends StatefulWidget {
   const CaretAssist({
     super.key,
@@ -24,6 +32,7 @@ class CaretAssist extends StatefulWidget {
 
 class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
   final _anchor = GlobalKey();
+  final _suggestionScroll = ScrollController();
   OverlayEntry? _entry;
   String? _dismissed;
   List<String> _matches = [];
@@ -170,22 +179,22 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
       final safeTop = media.padding.top + kToolbarHeight + 8;
       if (bottom - safeTop < 50) return;
       final rtl = Directionality.of(context) == TextDirection.rtl;
-      final above = (point.dy - safeTop - 8).clamp(0.0, bottom - safeTop);
-      final height = above >= 80
-          ? above.clamp(80.0, 180.0)
-          : (bottom - safeTop).clamp(50.0, 180.0);
+      final height = _desktop
+          ? (bottom - safeTop).clamp(50.0, 180.0)
+          : mobileAssistHeight(media);
       final preferredTop = _desktop
           ? render.localToGlobal(caret.bottomLeft).dy + 4
-          : point.dy - height - 8;
+          : bottom - height;
       final top = preferredTop.clamp(
         safeTop,
         (bottom - height).clamp(safeTop, bottom),
       );
-      final left =
-          (rtl
-                  ? point.dx - width - (_desktop ? 8 : 0)
-                  : point.dx + (_desktop ? 8 : 0))
-              .clamp(12.0, media.size.width - width - 12);
+      final left = _desktop
+          ? (rtl ? point.dx - width - 8 : point.dx + 8).clamp(
+              12.0,
+              media.size.width - width - 12,
+            )
+          : (rtl ? media.size.width - width - 12 : 12.0);
       _entry = OverlayEntry(
         builder: (_) => Positioned(
           left: left,
@@ -197,11 +206,12 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
               elevation: 6,
               borderRadius: BorderRadius.circular(18),
               clipBehavior: Clip.antiAlias,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: height),
+              child: SizedBox(
+                height: height,
                 child: NotificationListener<ScrollNotification>(
                   onNotification: (_) => true,
                   child: SingleChildScrollView(
+                    controller: _suggestionScroll,
                     child: Padding(
                       padding: const EdgeInsets.all(8),
                       child: Column(
@@ -262,6 +272,7 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _suggestionScroll.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _scrollObserver?.removeListener(_scrolled);
     widget.controller.removeListener(_update);

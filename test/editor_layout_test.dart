@@ -3,6 +3,51 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notebox/features/inbox/paragraph_editor.dart';
 
 void main() {
+  testWidgets('mobile candidates scroll inside a fixed bottom-left panel', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ParagraphEditor(
+          words: List.generate(40, (i) => '원소${i.toString().padLeft(2, '0')}'),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('paragraph-0')));
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await tester.pumpAndSettle();
+    final popup = find.byKey(const ValueKey('assist-popup'));
+    final bounds = tester.getRect(popup);
+    expect(bounds.left, 12);
+    expect(bounds.bottom, lessThanOrEqualTo(544));
+    final scroll = find.descendant(
+      of: popup,
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('suggestion-원소39')),
+      100,
+      scrollable: scroll,
+    );
+    await tester.pumpAndSettle();
+    expect(tester.getRect(popup), bounds);
+    await tester.tap(find.byKey(const ValueKey('suggestion-원소39')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('paragraph-0')))
+          .controller!
+          .text,
+      '원소39',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('project preview uses unsaved text and returns intact', (
     tester,
   ) async {
@@ -65,9 +110,20 @@ void main() {
       tester.getBottomRight(find.byKey(const ValueKey('assist-popup'))).dy,
       lessThanOrEqualTo(544),
     );
+    final popupBefore = tester.getRect(
+      find.byKey(const ValueKey('assist-popup')),
+    );
     await tester.drag(find.byType(ListView).first, const Offset(0, -80));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('assist-popup')), findsOneWidget);
+    expect(
+      tester.getRect(find.byKey(const ValueKey('assist-popup'))),
+      popupBefore,
+    );
+    expect(
+      tester.getBottomRight(find.byType(ListView).first).dy,
+      lessThanOrEqualTo(popupBefore.top),
+    );
     expect(tester.takeException(), isNull);
   });
 }
