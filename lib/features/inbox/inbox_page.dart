@@ -1,6 +1,7 @@
 import 'project_folders.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 
 import 'dart:convert';
@@ -253,6 +254,42 @@ class _InboxPageState extends State<InboxPage> {
     super.dispose();
   }
 
+  KeyEventResult _quickMemoKey(FocusNode node, KeyEvent event) {
+    final desktop =
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.linux;
+    if (!desktop ||
+        event is KeyUpEvent ||
+        (event.logicalKey != LogicalKeyboardKey.enter &&
+            event.logicalKey != LogicalKeyboardKey.numpadEnter)) {
+      return KeyEventResult.ignored;
+    }
+    final value = _draft.value;
+    if (value.composing.isValid && !value.composing.isCollapsed) {
+      return KeyEventResult.ignored;
+    }
+    final keyboard = HardwareKeyboard.instance;
+    if (keyboard.isControlPressed || keyboard.isMetaPressed) {
+      return KeyEventResult.ignored;
+    }
+    if (event is KeyRepeatEvent) return KeyEventResult.handled;
+    if (keyboard.isShiftPressed || keyboard.isAltPressed) {
+      final selection = value.selection;
+      final start = selection.isValid ? selection.start : value.text.length;
+      final end = selection.isValid ? selection.end : start;
+      setState(
+        () => _draft.value = TextEditingValue(
+          text: value.text.replaceRange(start, end, '\n'),
+          selection: TextSelection.collapsed(offset: start + 1),
+        ),
+      );
+    } else if (value.text.trim().isNotEmpty) {
+      _save();
+    }
+    return KeyEventResult.handled;
+  }
+
   void _save() {
     if (_draft.text.trim().isEmpty) return;
     if (parseTaggedInput(_draft.text).text.isEmpty) {
@@ -441,19 +478,24 @@ class _InboxPageState extends State<InboxPage> {
             ],
           ),
           const SizedBox(height: 14),
-          TextField(
-            controller: _draft,
-            focusNode: _focus,
-            minLines: 4,
-            maxLines: 8,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              filled: false,
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              hintText: '단어나 생각을 남겨보세요 #독서 #아이디어',
-              contentPadding: EdgeInsets.zero,
+          Focus(
+            canRequestFocus: false,
+            onKeyEvent: _quickMemoKey,
+            child: TextField(
+              key: const ValueKey('quick-memo'),
+              controller: _draft,
+              focusNode: _focus,
+              minLines: 4,
+              maxLines: 8,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                hintText: '단어나 생각을 남겨보세요 #독서 #아이디어',
+                contentPadding: EdgeInsets.zero,
+              ),
             ),
           ),
           const SizedBox(height: 12),
