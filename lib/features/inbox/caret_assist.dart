@@ -85,7 +85,7 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
               : value.text.length,
         ),
       );
-      final point = render.localToGlobal(caret.bottomLeft);
+      final point = render.localToGlobal(caret.topLeft);
       final media = MediaQueryData.fromView(View.of(context));
       final width = (media.size.width - 24).clamp(0.0, 300.0);
       final bottom =
@@ -96,16 +96,18 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
       final safeTop = media.padding.top + kToolbarHeight + 8;
       if (bottom - safeTop < 50) return;
       final rtl = Directionality.of(context) == TextDirection.rtl;
-      final sideX = rtl ? point.dx - width - 12 : point.dx + 12;
-      final sideFits = sideX >= 12 && sideX + width <= media.size.width - 12;
-      final height = (bottom - safeTop).clamp(50.0, 180.0);
-      final preferredTop = sideFits ? point.dy : point.dy + 4;
-      final top = preferredTop.clamp(
+      final above = (point.dy - safeTop - 8).clamp(0.0, bottom - safeTop);
+      final height = above >= 80
+          ? above.clamp(80.0, 180.0)
+          : (bottom - safeTop).clamp(50.0, 180.0);
+      final top = (point.dy - height - 8).clamp(
         safeTop,
         (bottom - height).clamp(safeTop, bottom),
       );
-      final left = (sideFits ? sideX : (rtl ? point.dx - width : point.dx))
-          .clamp(12.0, media.size.width - width - 12);
+      final left = (rtl ? point.dx - width : point.dx).clamp(
+        12.0,
+        media.size.width - width - 12,
+      );
       _entry = OverlayEntry(
         builder: (_) => Positioned(
           left: left,
@@ -119,49 +121,52 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
               clipBehavior: Clip.antiAlias,
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: height),
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                '원소 어시스트',
-                                style: TextStyle(fontSize: 11),
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: '후보 닫기',
-                              visualDensity: VisualDensity.compact,
-                              onPressed: () {
-                                _dismissed = widget.controller.text;
-                                _hide();
-                              },
-                              icon: const Icon(Icons.close, size: 16),
-                            ),
-                          ],
-                        ),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: matches
-                              .map(
-                                (word) => WordBadge(
-                                  key: ValueKey('suggestion-$word'),
-                                  word: word,
-                                  onTap: () {
-                                    widget.onWord(word);
-                                    _dismissed = widget.controller.text;
-                                    _hide();
-                                  },
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (_) => true,
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  '원소 어시스트',
+                                  style: TextStyle(fontSize: 11),
                                 ),
-                              )
-                              .toList(),
-                        ),
-                      ],
+                              ),
+                              IconButton(
+                                tooltip: '후보 닫기',
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () {
+                                  _dismissed = widget.controller.text;
+                                  _hide();
+                                },
+                                icon: const Icon(Icons.close, size: 16),
+                              ),
+                            ],
+                          ),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: matches
+                                .map(
+                                  (word) => WordBadge(
+                                    key: ValueKey('suggestion-$word'),
+                                    word: word,
+                                    onTap: () {
+                                      widget.onWord(word);
+                                      _dismissed = widget.controller.text;
+                                      _hide();
+                                    },
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

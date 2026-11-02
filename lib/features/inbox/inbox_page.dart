@@ -60,8 +60,9 @@ class _InboxPageState extends State<InboxPage> {
 
   Future<void> _writeParagraphs([Note? note]) async {
     final words = _notes
-        .map((n) => n.title.trim())
-        .where((s) => s.isNotEmpty && !s.contains(' ') && s.length <= 20)
+        .where((n) => n.paragraphs == null && n.project == null)
+        .map((n) => n.content.trim())
+        .where((s) => s.isNotEmpty)
         .toSet()
         .toList();
     final result = await Navigator.push<List<Paragraph>>(
@@ -91,11 +92,8 @@ class _InboxPageState extends State<InboxPage> {
         .expand((n) => n.paragraphs ?? <Paragraph>[])
         .toList();
     final words = _notes
-        .where(
-          (n) =>
-              n.paragraphs == null && !n.content.trim().contains(RegExp(r'\s')),
-        )
-        .map((n) => n.title)
+        .where((n) => n.paragraphs == null && n.project == null)
+        .map((n) => n.content.trim())
         .toSet()
         .toList();
     final project = await Navigator.push<WritingProject>(
@@ -165,8 +163,9 @@ class _InboxPageState extends State<InboxPage> {
     final projects = _notes.where((n) => n.project != null).toList();
     final choice = await showDialog<int>(
       context: context,
-      builder: (_) =>
-          WorkspaceMenu(projects: projects.map((n) => n.title).toList()),
+      builder: (_) => WorkspaceMenu(
+        projects: projects.map((n) => n.content.trim()).toList(),
+      ),
     );
     if (!mounted || choice == null || choice == -1) return;
     if (choice == -2) {
@@ -279,20 +278,18 @@ class _InboxPageState extends State<InboxPage> {
           spacing: 6,
           runSpacing: 6,
           children: visible
-              .where(
-                (n) =>
-                    n.paragraphs == null &&
-                    !n.content.trim().contains(RegExp(r'\s')),
-              )
+              .where((n) => n.paragraphs == null && n.project == null)
               .map(
-                (note) => WordBadge(word: note.title, onTap: () => _open(note)),
+                (note) => WordBadge(
+                  word: note.content.trim(),
+                  onTap: () => _open(note),
+                ),
               )
               .toList(),
         ),
         const SizedBox(height: 10),
         for (final note in visible.where(
-          (n) =>
-              n.paragraphs != null || n.content.trim().contains(RegExp(r'\s')),
+          (n) => n.paragraphs != null || n.project != null,
         ))
           Card(
             elevation: 0,

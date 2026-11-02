@@ -4,6 +4,23 @@ import 'package:notebox/main.dart';
 import 'package:notebox/features/inbox/word_badge.dart';
 
 void main() {
+  testWidgets('phrase elements remain visible and available to assist', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.enterText(find.byType(TextField).first, '작은 생각');
+    await tester.pump();
+    await tester.ensureVisible(find.text('저장'));
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+    expect(find.text('작은 생각'), findsOneWidget);
+    await tester.ensureVisible(find.text('문단 쓰기'));
+    await tester.tap(find.text('문단 쓰기'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('paragraph-0')), '작');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('suggestion-작은 생각')), findsOneWidget);
+  });
   test('empty and composing first Hangul syllable match candidates', () {
     expect(matchesWord('관찰', ''), isTrue);
     expect(matchesWord('관찰', 'ㄱ'), isTrue);
@@ -102,11 +119,14 @@ void main() {
     await tester.ensureVisible(find.text('저장'));
     await tester.tap(find.text('저장'));
     await tester.pump();
-    expect(find.text('# 생각'), findsOneWidget);
-    await tester.ensureVisible(find.text('# 생각'));
-    await tester.tap(find.text('# 생각'));
-    await tester.pump();
     expect(find.text('# 생각\n연결하기'), findsOneWidget);
+    await tester.ensureVisible(find.text('# 생각\n연결하기'));
+    await tester.tap(find.text('# 생각\n연결하기'));
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField).first).controller!.text,
+      '# 생각\n연결하기',
+    );
     await tester.enterText(find.byType(TextField).first, '수정한 생각');
     await tester.ensureVisible(find.text('저장'));
     await tester.tap(find.text('저장'));
