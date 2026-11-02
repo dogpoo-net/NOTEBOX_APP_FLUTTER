@@ -84,3 +84,5 @@ Flutter 공식 Material 패키지를 사용합니다. 인디고 기반 의미 �
 데스크톱 어시스트 최신 동작: Ctrl 단독 키업으로 입력/선택 모드 토글. Ctrl 조합 단축키는 토글하지 않음. 선택 모드 방향키는 렌더링된 배지 좌표 기반(상하 인접 행의 가장 가까운 가로 위치), Enter/Space 삽입 후 입력 복귀. Escape 또는 일반 타이핑도 입력 복귀. 선택 후보 자동 내부 스크롤.
 
 원소 사용 위치: ElementSource에 project/paragraphIndex를 인덱싱(복원 시 재생성). 출현별 링크가 ProjectPage initialParagraph/initialOffset으로 이동해 원소 링크 autofocus 및 ensureVisible. 동명이 프로젝트/반복 출현 구분. WidgetSpan ElementLink로 키보드 포커스, 둥근 1px 테두리, 기존 점선 밑줄 유지. 기본 테마 dark. 폴더 만들기 버튼은 프로젝트 제목 옆 아이콘으로 축소.
+
+한글 폰트: Google Fonts 공식 NotoSansKR[wght].ttf 원본을 NotoSansKR-Variable.ttf로 번들. OFL 라이선스/출처/해시 동봉. main()에서 FontLoader 로딩 완료 후 runApp, ThemeData.fontFamily=NotoSansKR. 한글 11172자 및 현대 조합 자모 전체 cmap 검증.

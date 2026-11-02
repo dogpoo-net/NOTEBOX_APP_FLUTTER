@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'features/inbox/workspace_storage.dart';
@@ -8,6 +10,15 @@ import 'features/inbox/element_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Register the complete Korean font before any editable text is rendered.
+  final font = FontLoader('NotoSansKR')
+    ..addFont(rootBundle.load('assets/fonts/NotoSansKR-Variable.ttf'));
+  await font.load();
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks([
+      'Noto Sans KR',
+    ], await rootBundle.loadString('assets/fonts/OFL.txt'));
+  });
   WorkspaceStorage? storage;
   try {
     storage = WorkspaceStorage(await SharedPreferences.getInstance());
@@ -43,6 +54,7 @@ class _MyAppState extends State<MyApp> {
     );
     return ThemeData(
       useMaterial3: true,
+      fontFamily: 'NotoSansKR',
       splashFactory: InkRipple.splashFactory,
       splashColor: colors.primary.withValues(alpha: 0.12),
       highlightColor: colors.primary.withValues(alpha: 0.04),
