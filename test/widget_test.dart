@@ -18,7 +18,7 @@ void main() {
     await tester.tap(find.text('문단 쓰기'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const ValueKey('paragraph-0')), '오늘의 관');
-    await tester.pump();
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const ValueKey('suggestion-관찰')));
     await tester.tap(find.byKey(const ValueKey('suggestion-관찰')));
     await tester.pump();
@@ -36,7 +36,9 @@ void main() {
     await tester.pumpWidget(const MyApp());
     await tester.tap(find.text('문단 쓰기'));
     await tester.pumpAndSettle();
-    expect(find.text('제목'), findsNothing);
+    expect(find.text('제목'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('paragraph-0')));
+    await tester.pumpAndSettle();
     for (final word in starterWords) {
       expect(find.byKey(ValueKey('suggestion-$word')), findsOneWidget);
     }
@@ -52,8 +54,11 @@ void main() {
     );
     await tester.tap(find.text('기록함에 담기'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('관찰'));
-    await tester.tap(find.text('관찰'));
+    expect(find.text('완성 글'), findsWidgets);
+    await tester.tap(find.text('원소'));
+    await tester.pumpAndSettle();
+    expect(find.text('프로젝트의 모든 원소'), findsOneWidget);
+    await tester.tap(find.byTooltip('프로젝트 편집'));
     await tester.pumpAndSettle();
     expect(
       tester

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'word_badge.dart';
+import 'caret_assist.dart';
 
 enum ParagraphRole { title, subtitle, body }
 
@@ -145,40 +146,15 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    widget.words.isEmpty ? '시작을 돕는 예시 원소단어' : '내 메모에서 가져온 원소단어',
-                    style: TextStyle(color: colors.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: words
-                        .where(
-                          (word) => matchesWord(
-                            word,
-                            wordPrefix(_controllers[_active].value),
-                          ),
-                        )
-                        .map(
-                          (word) => WordBadge(
-                            key: ValueKey('suggestion-$word'),
-                            word: word,
-                            onTap: () => _insert(word, complete: true),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text('단어를 누르거나 바로 써보세요. 쓰기 시작하면 문단의 역할을 고를 수 있어요.'),
-                  const SizedBox(height: 24),
+                  const Text('원소 후보는 입력 커서 아래에 나타납니다.'),
+                  const SizedBox(height: 16),
                   for (var i = 0; i < _controllers.length; i++)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (_controllers[i].text.trim().isNotEmpty) ...[
+                          ...[
                             const SizedBox(height: 6),
                             Align(
                               alignment: Alignment.centerLeft,
@@ -214,33 +190,42 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
                               ),
                             ),
                           ],
-                          TextField(
-                            key: ValueKey('paragraph-$i'),
+                          CaretAssist(
                             controller: _controllers[i],
-                            focusNode: _focus[i],
-                            minLines: 2,
-                            maxLines: null,
-                            onTap: () => setState(() => _active = i),
-                            onChanged: (_) => setState(() {
+                            focus: _focus[i],
+                            words: words,
+                            onWord: (word) {
                               _active = i;
-                              _dirty = true;
-                            }),
-                            style: TextStyle(
-                              fontSize: _roles[i] == ParagraphRole.title
-                                  ? 28
-                                  : _roles[i] == ParagraphRole.subtitle
-                                  ? 21
-                                  : 16,
-                              fontWeight: _roles[i] == ParagraphRole.body
-                                  ? FontWeight.normal
-                                  : FontWeight.w600,
-                              height: 1.5,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: i == 0
-                                  ? '단어 하나로 시작해보세요'
-                                  : '다음 생각을 이어보세요',
-                              labelText: '문단 ${i + 1}',
+                              _insert(word, complete: true);
+                            },
+                            child: TextField(
+                              key: ValueKey('paragraph-$i'),
+                              controller: _controllers[i],
+                              focusNode: _focus[i],
+                              minLines: 2,
+                              maxLines: null,
+                              onTap: () => setState(() => _active = i),
+                              onChanged: (_) => setState(() {
+                                _active = i;
+                                _dirty = true;
+                              }),
+                              style: TextStyle(
+                                fontSize: _roles[i] == ParagraphRole.title
+                                    ? 28
+                                    : _roles[i] == ParagraphRole.subtitle
+                                    ? 21
+                                    : 16,
+                                fontWeight: _roles[i] == ParagraphRole.body
+                                    ? FontWeight.normal
+                                    : FontWeight.w600,
+                                height: 1.5,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: i == 0
+                                    ? '단어 하나로 시작해보세요'
+                                    : '다음 생각을 이어보세요',
+                                labelText: '문단 ${i + 1}',
+                              ),
                             ),
                           ),
                         ],

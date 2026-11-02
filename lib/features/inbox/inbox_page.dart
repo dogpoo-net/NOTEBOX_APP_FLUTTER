@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'paragraph_editor.dart';
 import 'word_badge.dart';
+import 'project_page.dart';
 
 class Note {
   Note(this.content) : createdAt = DateTime.now();
   String content;
   List<Paragraph>? paragraphs;
+  WritingProject? project;
   final DateTime createdAt;
   String get title => content.trim().split('\n').first.trim();
 }
@@ -59,7 +61,6 @@ class _InboxPageState extends State<InboxPage> {
         .map((n) => n.title.trim())
         .where((s) => s.isNotEmpty && !s.contains(' ') && s.length <= 20)
         .toSet()
-        .take(12)
         .toList();
     final result = await Navigator.push<List<Paragraph>>(
       context,
@@ -71,18 +72,42 @@ class _InboxPageState extends State<InboxPage> {
       ),
     );
     if (result == null || !mounted) return;
+    Note? saved;
     setState(() {
       final content = result.map((p) => p.text).join('\n\n');
       if (note == null) {
-        _notes.insert(0, Note(content)..paragraphs = result);
+        saved = Note(content)
+          ..paragraphs = result
+          ..project = WritingProject(
+            result,
+            words.isEmpty ? starterWords : words,
+          );
+        _notes.insert(0, saved!);
       } else {
         note.content = content;
         note.paragraphs = result;
       }
     });
+    if (saved != null) await _showProject(saved!);
+  }
+
+  Future<void> _showProject(Note note) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ProjectPage(project: note.project!)),
+    );
+    if (!mounted) return;
+    setState(() {
+      note.paragraphs = note.project!.paragraphs;
+      note.content = note.paragraphs!.map((p) => p.text).join("\n\n");
+    });
   }
 
   Future<void> _open(Note note) async {
+    if (note.project != null) {
+      await _showProject(note);
+      return;
+    }
     if (note.paragraphs != null) {
       await _writeParagraphs(note);
       return;
