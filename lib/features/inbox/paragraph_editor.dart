@@ -69,8 +69,8 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
         (selection.isValid ? selection.start : c.text.length) - prefix.length;
     final end = selection.isValid ? selection.end : start;
     c.value = TextEditingValue(
-      text: c.text.replaceRange(start, end, '$word '),
-      selection: TextSelection.collapsed(offset: start + word.length + 1),
+      text: c.text.replaceRange(start, end, word),
+      selection: TextSelection.collapsed(offset: start + word.length),
     );
     setState(() => _dirty = true);
     _focus[_active].requestFocus();
@@ -154,9 +154,18 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
                     spacing: 8,
                     runSpacing: 8,
                     children: words
+                        .where(
+                          (word) => matchesWord(
+                            word,
+                            wordPrefix(_controllers[_active].value),
+                          ),
+                        )
                         .map(
-                          (word) =>
-                              WordBadge(word: word, onTap: () => _insert(word)),
+                          (word) => WordBadge(
+                            key: ValueKey('suggestion-$word'),
+                            word: word,
+                            onTap: () => _insert(word, complete: true),
+                          ),
                         )
                         .toList(),
                   ),
@@ -166,100 +175,77 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
                   for (var i = 0; i < _controllers.length; i++)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Expanded(
-                            child: TextField(
-                              key: ValueKey('paragraph-$i'),
-                              controller: _controllers[i],
-                              focusNode: _focus[i],
-                              minLines: 2,
-                              maxLines: null,
-                              onTap: () => setState(() => _active = i),
-                              onChanged: (_) => setState(() {
-                                _active = i;
-                                _dirty = true;
-                              }),
-                              style: TextStyle(
-                                fontSize: _roles[i] == ParagraphRole.title
-                                    ? 28
-                                    : _roles[i] == ParagraphRole.subtitle
-                                    ? 21
-                                    : 16,
-                                fontWeight: _roles[i] == ParagraphRole.body
-                                    ? FontWeight.normal
-                                    : FontWeight.w600,
-                                height: 1.5,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: i == 0
-                                    ? '단어 하나로 시작해보세요'
-                                    : '다음 생각을 이어보세요',
-                                labelText: '문단 ${i + 1}',
-                              ),
-                            ),
-                          ),
                           if (_controllers[i].text.trim().isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            ToggleButtons(
-                              direction: Axis.vertical,
-                              borderRadius: BorderRadius.circular(16),
-                              constraints: const BoxConstraints(
-                                minWidth: 48,
-                                minHeight: 32,
-                              ),
-                              textStyle: const TextStyle(fontSize: 11),
-                              isSelected: ParagraphRole.values
-                                  .map((role) => role == _roles[i])
-                                  .toList(),
-                              onPressed: (index) {
-                                setState(() {
-                                  _roles[i] = ParagraphRole.values[index];
-                                  _active = i;
-                                  _dirty = true;
-                                });
-                                _focus[i].requestFocus();
-                              },
-                              children: _labels
-                                  .map(
-                                    (label) => Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
+                            const SizedBox(height: 6),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: ToggleButtons(
+                                direction: Axis.horizontal,
+                                borderRadius: BorderRadius.circular(16),
+                                constraints: const BoxConstraints(
+                                  minWidth: 48,
+                                  minHeight: 28,
+                                ),
+                                textStyle: const TextStyle(fontSize: 11),
+                                isSelected: ParagraphRole.values
+                                    .map((role) => role == _roles[i])
+                                    .toList(),
+                                onPressed: (index) {
+                                  setState(() {
+                                    _roles[i] = ParagraphRole.values[index];
+                                    _active = i;
+                                    _dirty = true;
+                                  });
+                                  _focus[i].requestFocus();
+                                },
+                                children: _labels
+                                    .map(
+                                      (label) => Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                        ),
+                                        child: Text(label),
                                       ),
-                                      child: Text(label),
-                                    ),
-                                  )
-                                  .toList(),
+                                    )
+                                    .toList(),
+                              ),
                             ),
                           ],
+                          TextField(
+                            key: ValueKey('paragraph-$i'),
+                            controller: _controllers[i],
+                            focusNode: _focus[i],
+                            minLines: 2,
+                            maxLines: null,
+                            onTap: () => setState(() => _active = i),
+                            onChanged: (_) => setState(() {
+                              _active = i;
+                              _dirty = true;
+                            }),
+                            style: TextStyle(
+                              fontSize: _roles[i] == ParagraphRole.title
+                                  ? 28
+                                  : _roles[i] == ParagraphRole.subtitle
+                                  ? 21
+                                  : 16,
+                              fontWeight: _roles[i] == ParagraphRole.body
+                                  ? FontWeight.normal
+                                  : FontWeight.w600,
+                              height: 1.5,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: i == 0
+                                  ? '단어 하나로 시작해보세요'
+                                  : '다음 생각을 이어보세요',
+                              labelText: '문단 ${i + 1}',
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  if (wordPrefix(_controllers[_active].value).isNotEmpty) ...[
-                    const Text('원소단어 후보'),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: words
-                          .where(
-                            (word) => matchesWord(
-                              word,
-                              wordPrefix(_controllers[_active].value),
-                            ),
-                          )
-                          .map(
-                            (word) => WordBadge(
-                              key: ValueKey('suggestion-$word'),
-                              word: word,
-                              onTap: () => _insert(word, complete: true),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
                   OutlinedButton.icon(
                     onPressed: () {
                       setState(() {

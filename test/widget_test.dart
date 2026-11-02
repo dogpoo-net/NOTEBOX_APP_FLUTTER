@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notebox/main.dart';
+import 'package:notebox/features/inbox/word_badge.dart';
 
 void main() {
+  test('empty and composing first Hangul syllable match candidates', () {
+    expect(matchesWord('관찰', ''), isTrue);
+    expect(matchesWord('관찰', 'ㄱ'), isTrue);
+    expect(matchesWord('관찰', '과'), isTrue);
+    expect(matchesWord('관찰', '관'), isTrue);
+    expect(matchesWord('관찰', '질'), isFalse);
+  });
   testWidgets('first syllable suggests and replaces only the current word', (
     tester,
   ) async {
@@ -19,7 +27,7 @@ void main() {
           .widget<TextField>(find.byKey(const ValueKey('paragraph-0')))
           .controller!
           .text,
-      '오늘의 관찰 ',
+      '오늘의 관찰',
     );
   });
   testWidgets('paragraph roles persist after saving and reopening', (
@@ -29,6 +37,9 @@ void main() {
     await tester.tap(find.text('문단 쓰기'));
     await tester.pumpAndSettle();
     expect(find.text('제목'), findsNothing);
+    for (final word in starterWords) {
+      expect(find.byKey(ValueKey('suggestion-$word')), findsOneWidget);
+    }
     await tester.tap(find.text('관찰'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('제목'));

@@ -48,11 +48,33 @@ String wordPrefix(TextEditingValue value) {
 }
 
 bool matchesWord(String word, String prefix) {
-  if (word.toLowerCase().startsWith(prefix.toLowerCase())) return true;
+  if (_hangulParts(word.toLowerCase())
+      .startsWith(_hangulParts(prefix.toLowerCase()))) {
+    return true;
+  }
   const initials = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
   if (prefix.length == 1 && initials.contains(prefix) && word.isNotEmpty) {
     final code = word.runes.first - 0xAC00;
     return code >= 0 && code < 11172 && initials[code ~/ 588] == prefix;
   }
   return false;
+}
+
+// Compare composing Hangul without changing the user's composing text.
+String _hangulParts(String text) {
+  const initial = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+  const vowels = 'ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ';
+  const finalLetters = ' ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ';
+  final result = StringBuffer();
+  for (final rune in text.runes) {
+    final index = rune - 0xAC00;
+    if (index < 0 || index >= 11172) {
+      result.writeCharCode(rune);
+      continue;
+    }
+    result.write(initial[index ~/ 588]);
+    result.write(vowels[(index % 588) ~/ 28]);
+    if (index % 28 != 0) result.write(finalLetters[index % 28]);
+  }
+  return result.toString();
 }
