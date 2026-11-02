@@ -33,6 +33,7 @@ class _ProjectPageState extends State<ProjectPage> {
       context,
       MaterialPageRoute(
         builder: (_) => ParagraphEditor(
+          projectEditing: true,
           initial: widget.project.paragraphs,
           words: widget.project.words,
         ),

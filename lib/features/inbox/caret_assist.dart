@@ -21,14 +21,17 @@ class CaretAssist extends StatefulWidget {
   State<CaretAssist> createState() => _CaretAssistState();
 }
 
-class _CaretAssistState extends State<CaretAssist> {
+class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
   final _anchor = GlobalKey();
   OverlayEntry? _entry;
   String? _dismissed;
   ScrollNotificationObserverState? _scrollObserver;
   void _scrolled(ScrollNotification notification) {
-    _hide();
+    _update();
   }
+
+  @override
+  void didChangeMetrics() => _update();
 
   @override
   void didChangeDependencies() {
@@ -41,6 +44,7 @@ class _CaretAssistState extends State<CaretAssist> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     widget.controller.addListener(_update);
     widget.focus.addListener(_update);
   }
@@ -82,15 +86,26 @@ class _CaretAssistState extends State<CaretAssist> {
         ),
       );
       final point = render.localToGlobal(caret.bottomLeft);
-      final media = MediaQuery.of(context);
+      final media = MediaQueryData.fromView(View.of(context));
       final width = (media.size.width - 24).clamp(0.0, 300.0);
-      final bottom = media.size.height - media.viewInsets.bottom;
-      if (point.dy < media.padding.top || point.dy > bottom) return;
-      final left = point.dx.clamp(12.0, media.size.width - width - 12);
-      final available = bottom - point.dy - 12;
-      final top = available >= 80
-          ? point.dy + 4
-          : (point.dy - 150).clamp(media.padding.top + 8, bottom);
+      final bottom =
+          media.size.height -
+          media.viewInsets.bottom -
+          media.padding.bottom -
+          8;
+      final safeTop = media.padding.top + kToolbarHeight + 8;
+      if (bottom - safeTop < 50) return;
+      final rtl = Directionality.of(context) == TextDirection.rtl;
+      final sideX = rtl ? point.dx - width - 12 : point.dx + 12;
+      final sideFits = sideX >= 12 && sideX + width <= media.size.width - 12;
+      final height = (bottom - safeTop).clamp(50.0, 180.0);
+      final preferredTop = sideFits ? point.dy : point.dy + 4;
+      final top = preferredTop.clamp(
+        safeTop,
+        (bottom - height).clamp(safeTop, bottom),
+      );
+      final left = (sideFits ? sideX : (rtl ? point.dx - width : point.dx))
+          .clamp(12.0, media.size.width - width - 12);
       _entry = OverlayEntry(
         builder: (_) => Positioned(
           left: left,
@@ -98,13 +113,12 @@ class _CaretAssistState extends State<CaretAssist> {
           width: width,
           child: TextFieldTapRegion(
             child: Material(
+              key: const ValueKey("assist-popup"),
               elevation: 6,
               borderRadius: BorderRadius.circular(18),
               clipBehavior: Clip.antiAlias,
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: available >= 80 ? available.clamp(80, 180) : 140,
-                ),
+                constraints: BoxConstraints(maxHeight: height),
                 child: SingleChildScrollView(
                   child: Padding(
                     padding: const EdgeInsets.all(8),
@@ -162,6 +176,7 @@ class _CaretAssistState extends State<CaretAssist> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollObserver?.removeListener(_scrolled);
     widget.controller.removeListener(_update);
     widget.focus.removeListener(_update);

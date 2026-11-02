@@ -52,7 +52,7 @@ void main() {
       find.byKey(const ValueKey('paragraph-1')),
       '관찰에서 시작한 이야기',
     );
-    await tester.tap(find.text('기록함에 담기'));
+    await tester.tap(find.text('저장'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('관찰'));
     await tester.tap(find.text('관찰'));
@@ -99,8 +99,8 @@ void main() {
     );
     await tester.enterText(find.byType(TextField).first, '# 생각\n연결하기');
     await tester.pump();
-    await tester.ensureVisible(find.text('기록함에 담기'));
-    await tester.tap(find.text('기록함에 담기'));
+    await tester.ensureVisible(find.text('저장'));
+    await tester.tap(find.text('저장'));
     await tester.pump();
     expect(find.text('# 생각'), findsOneWidget);
     await tester.ensureVisible(find.text('# 생각'));
@@ -108,8 +108,8 @@ void main() {
     await tester.pump();
     expect(find.text('# 생각\n연결하기'), findsOneWidget);
     await tester.enterText(find.byType(TextField).first, '수정한 생각');
-    await tester.ensureVisible(find.text('수정 완료'));
-    await tester.tap(find.text('수정 완료'));
+    await tester.ensureVisible(find.text('저장'));
+    await tester.tap(find.text('저장'));
     await tester.pump();
     expect(find.text('수정한 생각'), findsOneWidget);
     await tester.enterText(find.byType(TextField).last, '없는 검색어');

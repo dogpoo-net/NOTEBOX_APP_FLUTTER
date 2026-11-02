@@ -5,7 +5,7 @@ class WorkspaceMenu extends StatelessWidget {
   final List<String> projects;
   @override
   Widget build(BuildContext context) => Dialog(
-    alignment: Alignment.topLeft,
+    alignment: AlignmentDirectional.topStart,
     insetPadding: const EdgeInsets.fromLTRB(16, 64, 16, 24),
     child: SizedBox(
       width: 320,
@@ -14,7 +14,7 @@ class WorkspaceMenu extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 8, 4),
+            padding: const EdgeInsetsDirectional.fromSTEB(20, 12, 8, 4),
             child: Row(
               children: [
                 const Expanded(

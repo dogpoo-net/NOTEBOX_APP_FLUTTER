@@ -222,7 +222,7 @@ class _InboxPageState extends State<InboxPage> {
               FilledButton.icon(
                 onPressed: _draft.text.trim().isEmpty ? null : _save,
                 icon: const Icon(Icons.arrow_downward_rounded, size: 18),
-                label: Text(_editing == null ? '기록함에 담기' : '수정 완료'),
+                label: Text(_editing == null ? '저장' : '저장'),
               ),
             ],
           ),

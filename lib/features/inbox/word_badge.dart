@@ -42,7 +42,7 @@ class WordBadge extends StatelessWidget {
 
 String wordPrefix(TextEditingValue value) {
   if (!value.selection.isValid || !value.selection.isCollapsed) return '';
-  return RegExp(r'[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]+$')
+  return RegExp(r'[^\s.,!?;:،؛؟()\[\]{}]+$')
           .stringMatch(value.text.substring(0, value.selection.extentOffset)) ??
       '';
 }

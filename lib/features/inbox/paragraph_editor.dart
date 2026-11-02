@@ -15,8 +15,10 @@ class ParagraphEditor extends StatefulWidget {
   const ParagraphEditor({
     super.key,
     this.initial = const [],
+    this.projectEditing = false,
     required this.words,
   });
+  final bool projectEditing;
   final List<Paragraph> initial;
   final List<String> words;
   @override
@@ -119,6 +121,71 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
           ),
           title: const Text('문단 쓰기'),
           actions: [
+            if (widget.projectEditing)
+              TextButton(
+                onPressed: hasText
+                    ? () {
+                        _focus[_active].unfocus();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => Scaffold(
+                              appBar: AppBar(title: const Text('미리보기')),
+                              body: SafeArea(
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 800,
+                                    ),
+                                    child: ListView(
+                                      padding: const EdgeInsets.all(24),
+                                      children: [
+                                        for (
+                                          var i = 0;
+                                          i < _controllers.length;
+                                          i++
+                                        )
+                                          if (_controllers[i].text
+                                              .trim()
+                                              .isNotEmpty)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 20,
+                                              ),
+                                              child: SelectableText(
+                                                _controllers[i].text,
+                                                style: TextStyle(
+                                                  height: 1.7,
+                                                  fontSize:
+                                                      _roles[i] ==
+                                                          ParagraphRole.title
+                                                      ? 30
+                                                      : _roles[i] ==
+                                                            ParagraphRole
+                                                                .subtitle
+                                                      ? 22
+                                                      : 16,
+                                                  fontWeight:
+                                                      _roles[i] ==
+                                                          ParagraphRole.body
+                                                      ? FontWeight.normal
+                                                      : FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                    : null,
+                child: const Text('미리보기'),
+              ),
+
             TextButton(
               onPressed: hasText
                   ? () {
@@ -130,7 +197,7 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
                       Navigator.pop(context, result);
                     }
                   : null,
-              child: const Text('기록함에 담기'),
+              child: const Text('저장'),
             ),
           ],
         ),
@@ -150,7 +217,7 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
                           ...[
                             const SizedBox(height: 6),
                             Align(
-                              alignment: Alignment.centerLeft,
+                              alignment: AlignmentDirectional.centerStart,
                               child: ToggleButtons(
                                 direction: Axis.horizontal,
                                 borderRadius: BorderRadius.circular(16),
