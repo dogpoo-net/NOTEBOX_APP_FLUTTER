@@ -88,3 +88,7 @@ Flutter 공식 Material 패키지를 사용합니다. 인디고 기반 의미 �
 한글 폰트: Google Fonts 공식 NotoSansKR[wght].ttf 원본을 NotoSansKR-Variable.ttf로 번들. OFL 라이선스/출처/해시 동봉. main()에서 FontLoader 로딩 완료 후 runApp, ThemeData.fontFamily=NotoSansKR. 한글 11172자 및 현대 조합 자모 전체 cmap 검증.
 
 원소 편집: 메인 클릭은 메타데이터 모달. Stateful 모달 textarea + 저장, 닫으면 미저장 편집 폐기. ElementStore.update는 빈 내용/중복 검사 후 기존 레코드 ID/createdAt/색상 유지하며 tags 교체. onRenamed로 빠른 메모와 project.words 동기화 후 notifyListeners로 영속화. 프로젝트 및 독립 문단 원문은 보존(사용 통계는 수정된 원소 텍스트의 현재 출현으로 계산).
+
+메뉴 DnD: 프로젝트/태그 payload 구분, 교차 드롭 차단, 폴더 및 미분류 drop target. 데스크톱 Draggable/모바일 LongPressDraggable, 드래그 중 가장자리 자동 스크롤. Stateful 메뉴가 모달에서도 이동 즉시 반영, root 콜백으로 영속화. v1 JSON optional hashtagFolders/hashtagFolderAssignments 추가, legacy 기본 빈 값, 초기화 포함.
+
+IME Ctrl 재수정: 논리키가 Process로 전달되는 경우에도 physical ControlLeft/ControlRight로 토글 인식. Chromium DOM compositionstart/update/input + key Process/code ControlLeft 이벤트로 한 번 토글 및 복귀 확인. 사용자 OS의 실제 IME 전체 조합을 자동 재현한 것은 아님.

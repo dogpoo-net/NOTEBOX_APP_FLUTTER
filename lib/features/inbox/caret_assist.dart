@@ -112,7 +112,9 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
     final keyboard = HardwareKeyboard.instance;
     final control =
         event.logicalKey == LogicalKeyboardKey.controlLeft ||
-        event.logicalKey == LogicalKeyboardKey.controlRight;
+        event.logicalKey == LogicalKeyboardKey.controlRight ||
+        event.physicalKey == PhysicalKeyboardKey.controlLeft ||
+        event.physicalKey == PhysicalKeyboardKey.controlRight;
     if (control) {
       if (event is KeyDownEvent) {
         _controlAlone =

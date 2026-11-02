@@ -25,8 +25,12 @@ class WorkspaceSnapshot {
     this.records,
     this.colors, [
     this.folders = const [],
+    this.tagFolders = const [],
+    this.tagAssignments = const {},
   ]);
   final List<String> folders;
+  final List<String> tagFolders;
+  final Map<String, String> tagAssignments;
   final List<Note> notes;
   final List<ElementRecord> records;
   final Map<String, double> colors;
@@ -37,6 +41,8 @@ class WorkspaceSnapshot {
   static String encode(List<Note> notes) => jsonEncode({
     'version': 1,
     'folders': projectFolders,
+    'hashtagFolders': hashtagFolders,
+    'hashtagFolderAssignments': hashtagFolderAssignments,
     'elements': elements.records.values
         .map(
           (r) => {
@@ -130,10 +136,33 @@ class WorkspaceSnapshot {
       final f = n.project?.folder;
       if (f != null && !folders.contains(f)) folders.add(f);
     }
-    return WorkspaceSnapshot(notes, records, colors, folders);
+    final tagFolders = ((data['hashtagFolders'] ?? []) as List)
+        .cast<String>()
+        .toSet()
+        .toList();
+    final assignments = Map<String, String>.from(
+      data['hashtagFolderAssignments'] ?? {},
+    );
+    for (final folder in assignments.values) {
+      if (!tagFolders.contains(folder)) tagFolders.add(folder);
+    }
+    return WorkspaceSnapshot(
+      notes,
+      records,
+      colors,
+      folders,
+      tagFolders,
+      assignments,
+    );
   }
 
   void apply() {
+    hashtagFolders
+      ..clear()
+      ..addAll(tagFolders);
+    hashtagFolderAssignments
+      ..clear()
+      ..addAll(tagAssignments);
     projectFolders
       ..clear()
       ..addAll(folders);

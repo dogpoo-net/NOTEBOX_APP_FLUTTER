@@ -48,6 +48,8 @@ class _InboxPageState extends State<InboxPage> {
     super.initState();
     _draft.addListener(_imeUpdated);
     projectFolders.clear();
+    hashtagFolders.clear();
+    hashtagFolderAssignments.clear();
     elements.addListener(_elementDeleted);
     elements.onProjectChanged = _persist;
     elements.onRenamed = _elementRenamed;
@@ -101,12 +103,12 @@ class _InboxPageState extends State<InboxPage> {
     _persist();
   }
 
-  Future<void> _createFolder() async {
+  Future<void> _createFolder({bool tag = false}) async {
     var folderName = '';
     final name = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('폴더 만들기'),
+        title: Text(tag ? '해시태그 폴더 만들기' : '폴더 만들기'),
         content: TextField(
           onChanged: (value) => folderName = value,
           autofocus: true,
@@ -125,10 +127,27 @@ class _InboxPageState extends State<InboxPage> {
       ),
     );
     if (!mounted || name == null || name.isEmpty) return;
-    if (!projectFolders.contains(name)) {
-      setState(() => projectFolders.add(name));
+    final folders = tag ? hashtagFolders : projectFolders;
+    if (!folders.contains(name)) {
+      setState(() => folders.add(name));
       await _persist();
     }
+  }
+
+  void _moveProject(List<Note> projects, int index, String? folder) {
+    setState(() => projects[index].project!.folder = folder);
+    _persist();
+  }
+
+  void _moveTag(String tag, String? folder) {
+    setState(() {
+      if (folder == null) {
+        hashtagFolderAssignments.remove(tag);
+      } else {
+        hashtagFolderAssignments[tag] = folder;
+      }
+    });
+    _persist();
   }
 
   Future<void> _persist() async {
@@ -168,6 +187,8 @@ class _InboxPageState extends State<InboxPage> {
       if (!mounted) return;
       setState(() {
         projectFolders.clear();
+        hashtagFolders.clear();
+        hashtagFolderAssignments.clear();
         elements.clear();
         restoreWordColors({});
         _notes.clear();
@@ -471,11 +492,21 @@ class _InboxPageState extends State<InboxPage> {
               }
             : null,
         tags: tags,
+        tagFolders: hashtagFolders,
+        tagFolderNames: hashtagFolderAssignments,
+        onProjectMoved: (index, folder) =>
+            _moveProject(projects, index, folder),
+        onTagMoved: _moveTag,
         folders: projectFolders,
         projectFolderNames: projects.map((n) => n.project!.folder).toList(),
       ),
     );
     await _selectMenu(choice, projects, tags);
+    if (mounted &&
+        (choice == WorkspaceMenu.createFolder ||
+            choice == WorkspaceMenu.createTagFolder)) {
+      await _menu();
+    }
   }
 
   Future<void> _selectMenu(
@@ -486,6 +517,10 @@ class _InboxPageState extends State<InboxPage> {
     if (!mounted || choice == null || choice == -1) return;
     if (choice == WorkspaceMenu.createFolder) {
       await _createFolder();
+      return;
+    }
+    if (choice == WorkspaceMenu.createTagFolder) {
+      await _createFolder(tag: true);
       return;
     }
     if (choice <= -3) {
@@ -735,6 +770,14 @@ class _InboxPageState extends State<InboxPage> {
                     .where((n) => n.project != null)
                     .map((n) => n.project!.folder)
                     .toList(),
+                tagFolders: hashtagFolders,
+                tagFolderNames: hashtagFolderAssignments,
+                onProjectMoved: (index, folder) => _moveProject(
+                  _notes.where((n) => n.project != null).toList(),
+                  index,
+                  folder,
+                ),
+                onTagMoved: _moveTag,
                 folders: projectFolders,
                 tags: elements.tags,
                 onSelected: (choice) => _selectMenu(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notebox/features/inbox/paragraph_editor.dart';
+import 'package:notebox/features/inbox/caret_assist.dart';
 import 'package:notebox/features/inbox/word_badge.dart';
 
 void main() {
@@ -26,7 +27,32 @@ void main() {
       );
       await tester.pumpAndSettle();
       final controller = tester.widget<TextField>(field).controller!;
-      await tester.sendKeyEvent(LogicalKeyboardKey.controlLeft);
+      final handler = tester
+          .widgetList<Focus>(
+            find.descendant(
+              of: find.byType(CaretAssist),
+              matching: find.byType(Focus),
+            ),
+          )
+          .firstWhere((f) => !f.canRequestFocus && f.onKeyEvent != null);
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      handler.onKeyEvent!(
+        node,
+        const KeyDownEvent(
+          physicalKey: PhysicalKeyboardKey.controlLeft,
+          logicalKey: LogicalKeyboardKey.process,
+          timeStamp: Duration.zero,
+        ),
+      );
+      handler.onKeyEvent!(
+        node,
+        const KeyUpEvent(
+          physicalKey: PhysicalKeyboardKey.controlLeft,
+          logicalKey: LogicalKeyboardKey.process,
+          timeStamp: Duration.zero,
+        ),
+      );
       await tester.pumpAndSettle();
       expect(controller.text, '생');
       expect(controller.selection.extentOffset, 1);
