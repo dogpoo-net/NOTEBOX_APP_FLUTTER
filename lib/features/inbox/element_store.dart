@@ -2,11 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 
 import 'word_badge.dart';
+import 'hashtags.dart';
 
 class ElementRecord {
   ElementRecord(this.text)
     : createdAt = DateTime.now(),
-      id = 'element-${_next++}';
+      id = 'element-${DateTime.now().microsecondsSinceEpoch}-${_next++}';
+  ElementRecord.restored(
+    this.id,
+    this.text,
+    this.createdAt, {
+    Iterable<String> tags = const [],
+  }) {
+    this.tags.addAll(tags);
+  }
+  final Set<String> tags = {};
   static int _next = 0;
   final String id;
   final String text;
@@ -23,13 +33,20 @@ class ElementSource {
 class ElementStore {
   final Map<String, ElementRecord> records = {};
   final Map<Object, List<ElementSource>> sources = {};
-  ElementRecord add(String text) {
-    final clean = text.trim();
+  ElementRecord add(String text, {bool replaceTags = false}) {
+    final parsed = parseTaggedInput(text);
+    final clean = parsed.text;
     if (clean.isEmpty) throw ArgumentError('Empty element');
-    return records.putIfAbsent(clean, () => ElementRecord(clean));
+    ensureWordColor(clean);
+    final record = records.putIfAbsent(clean, () => ElementRecord(clean));
+    if (replaceTags) record.tags.clear();
+    record.tags.addAll(parsed.tags);
+    return record;
   }
 
   List<String> get words => records.keys.toList();
+  List<String> get tags =>
+      records.values.expand((r) => r.tags).toSet().toList()..sort();
   List<({int start, int end, String word})> matches(String text) {
     final result = <({int start, int end, String word})>[];
     final ordered = words..sort((a, b) => b.length.compareTo(a.length));
@@ -92,6 +109,16 @@ void showElementMetadata(BuildContext context, String word) {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (element.tags.isNotEmpty) ...[
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: element.tags
+                      .map((tag) => Chip(label: Text('#$tag')))
+                      .toList(),
+                ),
+                const Divider(height: 20),
+              ],
               Text('생성일', style: Theme.of(context).textTheme.labelMedium),
               const SizedBox(height: 6),
               Text(element.createdAt.toLocal().toString().split('.').first),

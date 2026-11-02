@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+
+import 'dart:convert';
+
+import 'package:file_selector/file_selector.dart';
+
+import 'workspace_storage.dart';
+import 'hashtags.dart';
+import 'tag_page.dart';
 
 import 'paragraph_editor.dart';
 import 'word_badge.dart';
@@ -7,21 +16,14 @@ import 'project_builder.dart';
 import 'workspace_menu.dart';
 import 'element_store.dart';
 
-class Note {
-  Note(this.content) : createdAt = DateTime.now();
-  String content;
-  List<Paragraph>? paragraphs;
-  WritingProject? project;
-  final DateTime createdAt;
-  String get title => project?.name ?? content.trim().split('\n').first.trim();
-}
-
 class InboxPage extends StatefulWidget {
   const InboxPage({
     super.key,
+    this.storage,
     required this.themeMode,
     required this.onThemeChanged,
   });
+  final WorkspaceStorage? storage;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeChanged;
   @override
@@ -34,6 +36,157 @@ class _InboxPageState extends State<InboxPage> {
   final List<Note> _notes = [];
   String _query = '';
   Note? _editing;
+  String? _storageError;
+  bool _restoreBlocked = false;
+  @override
+  void initState() {
+    super.initState();
+    try {
+      final raw = widget.storage?.read();
+      if (raw != null) {
+        final snapshot = WorkspaceSnapshot.decode(raw);
+        snapshot.apply();
+        _notes.addAll(snapshot.notes);
+      }
+    } catch (_) {
+      _restoreBlocked = true;
+      _storageError = '저장 데이터를 읽지 못했습니다. 원본을 보존합니다. JSON 백업으로 복원해주세요.';
+    }
+  }
+
+  Future<void> _persist() async {
+    if (widget.storage == null || _restoreBlocked) return;
+    try {
+      await widget.storage!.write(WorkspaceSnapshot.encode(_notes));
+    } catch (_) {
+      if (mounted) {
+        setState(() => _storageError = '기기 저장 실패 · JSON 백업을 내려받아주세요.');
+      }
+    }
+  }
+
+  Future<void> _reset() async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('모든 데이터를 초기화할까요?'),
+        content: const Text(
+          '원소·문단·프로젝트와 이 앱의 기기 저장본을 삭제합니다. 다운로드한 JSON 파일은 삭제되지 않습니다.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('모두 삭제'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !mounted) return;
+    try {
+      await widget.storage?.clear();
+      if (!mounted) return;
+      setState(() {
+        elements.clear();
+        restoreWordColors({});
+        _notes.clear();
+        _draft.clear();
+        _editing = null;
+        _storageError = null;
+        _restoreBlocked = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('메모리와 기기 저장 데이터를 초기화했습니다.')));
+    } catch (_) {
+      if (mounted) {
+        setState(() => _storageError = '기기 데이터 삭제에 실패했습니다. 다시 시도해주세요.');
+      }
+    }
+  }
+
+  Future<void> _export() async {
+    try {
+      final data = WorkspaceSnapshot.encode(_notes);
+      final file = XFile.fromData(
+        Uint8List.fromList(utf8.encode(data)),
+        mimeType: 'application/json',
+        name: 'notebox-backup.json',
+      );
+      if (kIsWeb) {
+        await file.saveTo('notebox-backup.json');
+      } else {
+        final location = await getSaveLocation(
+          suggestedName: 'notebox-backup.json',
+        );
+        if (location != null) await file.saveTo(location.path);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('백업 파일 저장에 실패했습니다.')));
+      }
+    }
+  }
+
+  Future<void> _import() async {
+    try {
+      final file = await openFile(
+        acceptedTypeGroups: [
+          const XTypeGroup(
+            label: 'JSON',
+            extensions: ['json'],
+            mimeTypes: ['application/json'],
+            uniformTypeIdentifiers: ['public.json'],
+          ),
+        ],
+      );
+      if (file == null || !mounted) return;
+      if (await file.length() > 10000000) {
+        throw const FormatException('Too large');
+      }
+      final snapshot = WorkspaceSnapshot.decode(await file.readAsString());
+      if (!mounted) return;
+      final yes = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('백업으로 복원할까요?'),
+          content: const Text('현재 데이터를 교체합니다. 기존 데이터는 먼저 JSON 백업으로 보관해주세요.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('복원'),
+            ),
+          ],
+        ),
+      );
+      if (yes != true || !mounted) return;
+      setState(() {
+        snapshot.apply();
+        _notes
+          ..clear()
+          ..addAll(snapshot.notes);
+        _editing = null;
+        _draft.clear();
+        _restoreBlocked = false;
+        _storageError = null;
+      });
+      await _persist();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('백업 파일을 읽을 수 없습니다. 현재 데이터는 유지됩니다.')),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -44,12 +197,17 @@ class _InboxPageState extends State<InboxPage> {
 
   void _save() {
     if (_draft.text.trim().isEmpty) return;
-    elements.add(_draft.text);
+    if (parseTaggedInput(_draft.text).text.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('태그와 함께 원소 내용을 입력해주세요.')));
+      return;
+    }
+    final record = elements.add(_draft.text, replaceTags: _editing != null);
     setState(() {
       if (_editing == null) {
-        _notes.insert(0, Note(_draft.text));
+        _notes.insert(0, Note(record.text));
       } else {
-        _editing!.content = _draft.text;
+        _editing!.content = record.text;
       }
       _editing = null;
       _draft.clear();
@@ -57,6 +215,7 @@ class _InboxPageState extends State<InboxPage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('기록함에 담았어요. 다음 생각도 남겨보세요.')));
+    _persist();
     _focus.requestFocus();
   }
 
@@ -78,6 +237,7 @@ class _InboxPageState extends State<InboxPage> {
         _notes.insert(0, Note(paragraph.text)..paragraphs = [paragraph]);
       }
     });
+    await _persist();
   }
 
   Future<void> _createProject() async {
@@ -97,19 +257,24 @@ class _InboxPageState extends State<InboxPage> {
       ..project = project
       ..paragraphs = project.paragraphs;
     setState(() => _notes.insert(0, note));
+    await _persist();
     await _showProject(note);
   }
 
   Future<void> _showProject(Note note) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => ProjectPage(project: note.project!)),
+      MaterialPageRoute(
+        builder: (_) =>
+            ProjectPage(project: note.project!, onChanged: _persist),
+      ),
     );
     if (!mounted) return;
     setState(() {
       note.paragraphs = note.project!.paragraphs;
       note.content = note.paragraphs!.map((p) => p.text).join("\n\n");
     });
+    await _persist();
   }
 
   Future<void> _open(Note note) async {
@@ -143,7 +308,8 @@ class _InboxPageState extends State<InboxPage> {
     }
     setState(() {
       _editing = note;
-      _draft.text = note.content;
+      final tags = elements.records[note.content.trim()]?.tags ?? <String>{};
+      _draft.text = [note.content, ...tags.map((t) => '#$t')].join(' ');
     });
     _focus.requestFocus();
   }
@@ -151,14 +317,24 @@ class _InboxPageState extends State<InboxPage> {
   Future<void> _menu() async {
     FocusScope.of(context).unfocus();
     final projects = _notes.where((n) => n.project != null).toList();
+    final tags = elements.tags;
     final choice = await showDialog<int>(
       context: context,
       builder: (_) => WorkspaceMenu(
-        projects: projects.map((n) => n.content.trim()).toList(),
+        projects: projects.map((n) => n.title).toList(),
+        tags: tags,
       ),
     );
     if (!mounted || choice == null || choice == -1) return;
-    if (choice == -2) {
+    if (choice <= -3) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              TagPage(tag: tags[-3 - choice], notes: _notes, onOpen: _open),
+        ),
+      );
+    } else if (choice == -2) {
       await _writeParagraphs();
     } else {
       await _showProject(projects[choice]);
@@ -198,7 +374,7 @@ class _InboxPageState extends State<InboxPage> {
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
-              hintText: '단어나 생각을 남겨보세요',
+              hintText: '단어나 생각을 남겨보세요 #독서 #아이디어',
               contentPadding: EdgeInsets.zero,
             ),
           ),
@@ -407,6 +583,26 @@ class _InboxPageState extends State<InboxPage> {
                     ],
                   ),
                   const SizedBox(height: 20),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      TextButton.icon(
+                        onPressed: _export,
+                        icon: const Icon(Icons.download_outlined, size: 18),
+                        label: const Text('JSON 백업'),
+                      ),
+                      TextButton.icon(
+                        onPressed: _import,
+                        icon: const Icon(Icons.upload_file_outlined, size: 18),
+                        label: const Text('백업 복원'),
+                      ),
+                      TextButton.icon(
+                        onPressed: _reset,
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        label: const Text('데이터 초기화'),
+                      ),
+                    ],
+                  ),
                   LayoutBuilder(
                     builder: (context, constraints) =>
                         constraints.maxWidth >= 760
@@ -433,7 +629,10 @@ class _InboxPageState extends State<InboxPage> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    '임시 저장 · 새로고침 시 초기화',
+                    _storageError ??
+                        (widget.storage == null
+                            ? '기기 저장을 사용할 수 없습니다 · JSON 백업을 이용해주세요'
+                            : '이 브라우저에 저장됨 · 다른 기기로 옮길 때 JSON 백업을 사용하세요'),
                     style: TextStyle(
                       color: colors.onSurfaceVariant,
                       fontSize: 12,

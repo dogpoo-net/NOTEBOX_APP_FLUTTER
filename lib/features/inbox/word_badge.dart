@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 
 final _random = Random();
 final _wordHues = <String, double>{};
+void ensureWordColor(String word) {
+  _wordHues.putIfAbsent(word, () => _random.nextDouble() * 360);
+}
+
 const starterWords = ['관찰', '질문', '연결', '기억', '성장'];
 
 Color wordBackgroundColor(BuildContext context, String word) {
@@ -75,17 +79,33 @@ String wordPrefix(TextEditingValue value) {
       '';
 }
 
-bool matchesWord(String word, String prefix) {
-  if (_hangulParts(word.toLowerCase())
-      .startsWith(_hangulParts(prefix.toLowerCase()))) {
-    return true;
-  }
-  const initials = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
-  if (prefix.length == 1 && initials.contains(prefix) && word.isNotEmpty) {
-    final code = word.runes.first - 0xAC00;
-    return code >= 0 && code < 11172 && initials[code ~/ 588] == prefix;
-  }
-  return false;
+bool startsWord(String word, String query) =>
+    _hangulParts(word.toLowerCase())
+        .startsWith(_hangulParts(query.toLowerCase()));
+
+bool matchesWord(String word, String query) {
+  if (startsWord(word, query)) return true;
+  return query.characters.length >= 2 &&
+      _hangulParts(word.toLowerCase())
+          .contains(_hangulParts(query.toLowerCase()));
+}
+
+List<String> wordSuggestions(List<String> words, String query) {
+  final matches = words.where((word) => matchesWord(word, query)).toList();
+  matches.sort((a, b) {
+    final priority = (startsWord(a, query) ? 0 : 1).compareTo(
+      startsWord(b, query) ? 0 : 1,
+    );
+    return priority != 0 ? priority : a.compareTo(b);
+  });
+  return matches;
+}
+
+Map<String, double> exportWordColors() => Map.of(_wordHues);
+void restoreWordColors(Map<String, double> colors) {
+  _wordHues
+    ..clear()
+    ..addAll(colors);
 }
 
 // Compare composing Hangul without changing the user's composing text.
@@ -107,16 +127,5 @@ String _hangulParts(String text) {
   return result.toString();
 }
 
-String completionPrefix(TextEditingValue value, List<String> words) {
-  if (!value.selection.isValid || !value.selection.isCollapsed) return '';
-  final before = value.text.substring(0, value.selection.extentOffset);
-  for (var i = 0; i < before.length; i++) {
-    if (i > 0 && !RegExp(r'\s').hasMatch(before[i - 1])) continue;
-    final candidate = before.substring(i);
-    if (candidate.isNotEmpty &&
-        words.any((word) => matchesWord(word, candidate))) {
-      return candidate;
-    }
-  }
-  return wordPrefix(value);
-}
+String completionPrefix(TextEditingValue value, List<String> words) =>
+    wordPrefix(value);

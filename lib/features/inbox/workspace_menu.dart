@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
 class WorkspaceMenu extends StatelessWidget {
-  const WorkspaceMenu({super.key, required this.projects});
+  const WorkspaceMenu({
+    super.key,
+    required this.projects,
+    this.tags = const [],
+  });
+  final List<String> tags;
   final List<String> projects;
   @override
   Widget build(BuildContext context) => Dialog(
@@ -53,24 +58,45 @@ class WorkspaceMenu extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: projects.isEmpty
-                ? const Center(child: Text('아직 프로젝트가 없어요'))
-                : Scrollbar(
-                    child: ListView.builder(
-                      key: const ValueKey('menu-projects'),
-                      padding: const EdgeInsets.only(bottom: 12),
-                      itemCount: projects.length,
-                      itemBuilder: (context, index) => ListTile(
-                        leading: const Icon(Icons.folder_outlined, size: 20),
-                        title: Text(
-                          projects[index],
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        onTap: () => Navigator.pop(context, index),
-                      ),
+            child: Scrollbar(
+              child: ListView(
+                key: const ValueKey('menu-projects'),
+                padding: const EdgeInsets.only(bottom: 12),
+                children: [
+                  if (projects.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('아직 프로젝트가 없어요'),
                     ),
+                  for (var index = 0; index < projects.length; index++)
+                    ListTile(
+                      leading: const Icon(Icons.folder_outlined, size: 20),
+                      title: Text(
+                        projects[index],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () => Navigator.pop(context, index),
+                    ),
+                  const Divider(indent: 16, endIndent: 16),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text('해시태그'),
                   ),
+                  if (tags.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: Text('아직 해시태그가 없어요'),
+                    ),
+                  for (var index = 0; index < tags.length; index++)
+                    ListTile(
+                      leading: const Icon(Icons.tag, size: 20),
+                      title: Text('#${tags[index]}'),
+                      onTap: () => Navigator.pop(context, -3 - index),
+                    ),
+                ],
+              ),
+            ),
           ),
         ],
       ),

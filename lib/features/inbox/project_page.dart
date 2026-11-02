@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'paragraph_editor.dart';
 import 'word_badge.dart';
 import 'element_store.dart';
+import 'hashtags.dart';
 
 class WritingProject {
   WritingProject(this.paragraphs, List<String> words, {required this.name})
@@ -14,7 +15,8 @@ class WritingProject {
 }
 
 class ProjectPage extends StatefulWidget {
-  const ProjectPage({super.key, required this.project});
+  const ProjectPage({super.key, required this.project, this.onChanged});
+  final Future<void> Function()? onChanged;
   final WritingProject project;
   @override
   State<ProjectPage> createState() => _ProjectPageState();
@@ -42,6 +44,7 @@ class _ProjectPageState extends State<ProjectPage> {
     );
     if (result != null && mounted) {
       setState(() => widget.project.paragraphs = result);
+      await widget.onChanged?.call();
     }
   }
 
@@ -135,16 +138,27 @@ class _ProjectPageState extends State<ProjectPage> {
                   const SizedBox(height: 20),
                   TextField(
                     controller: _word,
-                    decoration: const InputDecoration(labelText: '원소단어 추가'),
+                    decoration: const InputDecoration(
+                      labelText: '원소단어 추가',
+                      hintText: '원소 내용 #태그',
+                    ),
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton(
                     onPressed: () {
                       final word = _word.text.trim();
-                      if (word.isEmpty) return;
+                      if (parseTaggedInput(word).text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('태그와 함께 원소 내용을 입력해주세요.'),
+                          ),
+                        );
+                        return;
+                      }
                       setState(() {
                         elements.add(word);
                         _word.clear();
+                        widget.onChanged?.call();
                       });
                     },
                     child: const Text('글로벌 원소 저장'),
@@ -164,7 +178,7 @@ class _ProjectPageState extends State<ProjectPage> {
                 ],
                 const SizedBox(height: 24),
                 const Text(
-                  '프로젝트는 현재 실행 중에만 보관됩니다.',
+                  '저장한 프로젝트는 이 기기에 보관됩니다.',
                   style: TextStyle(fontSize: 12),
                 ),
               ],

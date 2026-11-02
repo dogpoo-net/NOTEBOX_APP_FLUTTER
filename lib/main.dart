@@ -1,12 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'features/inbox/workspace_storage.dart';
 
 import 'features/inbox/inbox_page.dart';
 import 'features/inbox/element_store.dart';
 
-void main() => runApp(const MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  WorkspaceStorage? storage;
+  try {
+    storage = WorkspaceStorage(await SharedPreferences.getInstance());
+  } catch (_) {
+    /* Show storage availability in the workspace. */
+  }
+  runApp(MyApp(storage: storage));
+}
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.storage});
+  final WorkspaceStorage? storage;
   @override
   State<MyApp> createState() => _MyAppState();
 }
@@ -87,6 +100,7 @@ class _MyAppState extends State<MyApp> {
     darkTheme: _theme(Brightness.dark),
     themeMode: _mode,
     home: InboxPage(
+      storage: widget.storage,
       themeMode: _mode,
       onThemeChanged: (mode) => setState(() => _mode = mode),
     ),

@@ -305,7 +305,7 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    '메모는 현재 실행 중에만 보관됩니다.',
+                    '저장을 누르면 문단이 보관됩니다.',
                     style: TextStyle(color: colors.onSurfaceVariant),
                   ),
                 ],

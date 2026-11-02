@@ -17,7 +17,7 @@ void main() {
     await tester.ensureVisible(find.text('문단 쓰기'));
     await tester.tap(find.text('문단 쓰기'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('paragraph-0')), '작은 생');
+    await tester.enterText(find.byKey(const ValueKey('paragraph-0')), '생각');
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('suggestion-작은 생각')), findsOneWidget);
   });

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'word_badge.dart';
 
@@ -25,6 +26,64 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
   final _anchor = GlobalKey();
   OverlayEntry? _entry;
   String? _dismissed;
+  List<String> _matches = [];
+  int _selected = 0;
+  String _query = '';
+  final _listScroll = ScrollController();
+  bool get _desktop =>
+      MediaQuery.sizeOf(context).width >= 760 &&
+      MediaQuery.viewInsetsOf(context).bottom == 0;
+  void _choose(String word) {
+    widget.onWord(word);
+    _dismissed = widget.controller.text;
+    _hide();
+  }
+
+  bool _key(KeyEvent event) {
+    if (!mounted ||
+        !widget.focus.hasFocus ||
+        !_desktop ||
+        _entry == null ||
+        _matches.isEmpty ||
+        event is KeyUpEvent) {
+      return false;
+    }
+    final keyboard = HardwareKeyboard.instance;
+    if (keyboard.isControlPressed ||
+        keyboard.isMetaPressed ||
+        keyboard.isAltPressed ||
+        keyboard.isShiftPressed) {
+      return false;
+    }
+    final composing = widget.controller.value.composing;
+    if (composing.isValid && !composing.isCollapsed) return false;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      _dismissed = widget.controller.text;
+      _hide();
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
+        event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      _selected =
+          (_selected +
+              (event.logicalKey == LogicalKeyboardKey.arrowDown ? 1 : -1)) %
+          _matches.length;
+      _entry?.markNeedsBuild();
+      if (_listScroll.hasClients) {
+        _listScroll.jumpTo(
+          (_selected * 32.0).clamp(0.0, _listScroll.position.maxScrollExtent),
+        );
+      }
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.space) {
+      _choose(_matches[_selected]);
+      return true;
+    }
+    return false;
+  }
+
   ScrollNotificationObserverState? _scrollObserver;
   void _scrolled(ScrollNotification notification) {
     _update();
@@ -73,9 +132,12 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
       (_anchor.currentContext as Element?)?.visitChildren(visit);
       if (editable == null) return;
       final value = widget.controller.value;
-      final matches = widget.words
-          .where((w) => matchesWord(w, completionPrefix(value, widget.words)))
-          .toList();
+      final query = completionPrefix(value, widget.words);
+      final matches = wordSuggestions(widget.words, query);
+      if (_query != query) _selected = 0;
+      _query = query;
+      _matches = matches;
+      if (_selected >= matches.length) _selected = 0;
       if (matches.isEmpty) return;
       final render = editable!.renderEditable;
       final caret = render.getLocalRectForCaret(
@@ -100,14 +162,18 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
       final height = above >= 80
           ? above.clamp(80.0, 180.0)
           : (bottom - safeTop).clamp(50.0, 180.0);
-      final top = (point.dy - height - 8).clamp(
+      final preferredTop = _desktop
+          ? render.localToGlobal(caret.bottomLeft).dy + 4
+          : point.dy - height - 8;
+      final top = preferredTop.clamp(
         safeTop,
         (bottom - height).clamp(safeTop, bottom),
       );
-      final left = (rtl ? point.dx - width : point.dx).clamp(
-        12.0,
-        media.size.width - width - 12,
-      );
+      final left =
+          (rtl
+                  ? point.dx - width - (_desktop ? 8 : 0)
+                  : point.dx + (_desktop ? 8 : 0))
+              .clamp(12.0, media.size.width - width - 12);
       _entry = OverlayEntry(
         builder: (_) => Positioned(
           left: left,
@@ -117,58 +183,99 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
             child: Material(
               key: const ValueKey("assist-popup"),
               elevation: 6,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(_desktop ? 8 : 18),
               clipBehavior: Clip.antiAlias,
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: height),
                 child: NotificationListener<ScrollNotification>(
                   onNotification: (_) => true,
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Expanded(
-                                child: Text(
-                                  '원소 어시스트',
-                                  style: TextStyle(fontSize: 11),
+                  child: _desktop
+                      ? SizedBox(
+                          height: (matches.length * 32.0).clamp(32.0, height),
+                          child: ListView.builder(
+                            controller: _listScroll,
+                            padding: EdgeInsets.zero,
+                            itemExtent: 32,
+                            itemCount: matches.length,
+                            itemBuilder: (context, index) => Material(
+                              color: index == _selected
+                                  ? Theme.of(context)
+                                        .colorScheme
+                                        .secondaryContainer
+                                  : Colors.transparent,
+                              child: InkWell(
+                                key: ValueKey('suggestion-${matches[index]}'),
+                                onTap: () => _choose(matches[index]),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                  child: Align(
+                                    alignment: AlignmentDirectional.centerStart,
+                                    child: Text(
+                                      matches[index],
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: wordColor(
+                                          context,
+                                          matches[index],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              IconButton(
-                                tooltip: '후보 닫기',
-                                visualDensity: VisualDensity.compact,
-                                onPressed: () {
-                                  _dismissed = widget.controller.text;
-                                  _hide();
-                                },
-                                icon: const Icon(Icons.close, size: 16),
-                              ),
-                            ],
+                            ),
                           ),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: matches
-                                .map(
-                                  (word) => WordBadge(
-                                    key: ValueKey('suggestion-$word'),
-                                    word: word,
-                                    onTap: () {
-                                      widget.onWord(word);
-                                      _dismissed = widget.controller.text;
-                                      _hide();
-                                    },
-                                  ),
-                                )
-                                .toList(),
+                        )
+                      : SingleChildScrollView(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Expanded(
+                                      child: Text(
+                                        '원소 어시스트',
+                                        style: TextStyle(fontSize: 11),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      tooltip: '후보 닫기',
+                                      visualDensity: VisualDensity.compact,
+                                      onPressed: () {
+                                        _dismissed = widget.controller.text;
+                                        _hide();
+                                      },
+                                      icon: const Icon(Icons.close, size: 16),
+                                    ),
+                                  ],
+                                ),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: matches
+                                      .map(
+                                        (word) => WordBadge(
+                                          key: ValueKey('suggestion-$word'),
+                                          word: word,
+                                          onTap: () {
+                                            widget.onWord(word);
+                                            _dismissed = widget.controller.text;
+                                            _hide();
+                                          },
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ],
+                            ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
+                        ),
                 ),
               ),
             ),
@@ -181,6 +288,7 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _listScroll.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _scrollObserver?.removeListener(_scrolled);
     widget.controller.removeListener(_update);
@@ -196,6 +304,11 @@ class _CaretAssistState extends State<CaretAssist> with WidgetsBindingObserver {
           _update();
           return false;
         },
-        child: Container(key: _anchor, child: widget.child),
+        child: Focus(
+          canRequestFocus: false,
+          onKeyEvent: (_, event) =>
+              _key(event) ? KeyEventResult.handled : KeyEventResult.ignored,
+          child: Container(key: _anchor, child: widget.child),
+        ),
       );
 }
