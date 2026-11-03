@@ -96,3 +96,5 @@ IME Ctrl 재수정: 논리키가 Process로 전달되는 경우에도 physical C
 최신 저장 정책: JSON 파일 내보내기/가져오기 UI·코드 및 file_selector 의존성 제거. 브라우저 자동 저장과 초기화 유지. WorkspaceSnapshot JSON은 내부 저장 직렬화 용도로 유지하여 기존 저장 데이터 호환. 이전 백업/파일 복원 안내는 더 이상 적용되지 않음.
 
 문단 편집 화면: 어시스트를 위해 추가했던 동적 하단 Padding 제거. Scaffold 기본 키보드 resize만 사용하며 편집 ListView는 키보드 위까지 전체 높이를 사용. 모바일 어시스트 overlay 위치는 유지.
+
+키보드 표시 시 문단 목록: inset 증가 또는 모바일 viewport 축소를 감지하고 리사이즈/기본 커서 스크롤 완료 후 목록 maxScrollExtent로 이동. 스크롤 가능한 목록 끝에 어시스트 가림 영역만큼 여유를 추가(본문 viewport를 줄이는 외부 Padding은 없음). 수동 스크롤은 유지, 닫힐 때/폐기 시 예약 취소.

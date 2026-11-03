@@ -3,6 +3,88 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notebox/features/inbox/paragraph_editor.dart';
 
 void main() {
+  testWidgets('mobile web viewport shrink also reveals the bottom', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ParagraphEditor(
+          words: const ['기억'],
+          initial: List.generate(
+            8,
+            (i) => Paragraph(i == 0 ? '' : '문단 $i', ParagraphRole.body),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('paragraph-0')));
+    await tester.pumpAndSettle();
+    tester.view.physicalSize = const Size(390, 524);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    final list = find.byKey(const ValueKey('paragraph-scroll'));
+    final scroll = tester.widget<ListView>(list).controller!;
+    expect(scroll.offset, closeTo(scroll.position.maxScrollExtent, 1));
+    expect(
+      tester.getRect(find.text('다음 문단')).bottom,
+      lessThan(tester.getRect(find.byKey(const ValueKey('assist-popup'))).top),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'keyboard opening scrolls to bottom without shrinking body for assist',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ParagraphEditor(
+            words: const ['기억'],
+            initial: List.generate(
+              8,
+              (i) => Paragraph(i == 0 ? '' : '문단 $i', ParagraphRole.body),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('paragraph-0')));
+      await tester.pumpAndSettle();
+      tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+      final list = find.byKey(const ValueKey('paragraph-scroll'));
+      final controller = tester.widget<ListView>(list).controller!;
+      expect(
+        controller.offset,
+        closeTo(controller.position.maxScrollExtent, 1),
+      );
+      expect(tester.getBottomRight(list).dy, closeTo(524, 1));
+      expect(
+        tester.getRect(find.text('다음 문단')).bottom,
+        lessThan(
+          tester.getRect(find.byKey(const ValueKey('assist-popup'))).top,
+        ),
+      );
+      await tester.drag(list, const Offset(0, 100));
+      await tester.pumpAndSettle();
+      final offset = controller.offset;
+      await tester.pump(const Duration(seconds: 1));
+      expect(controller.offset, offset);
+      expect(offset, lessThan(controller.position.maxScrollExtent));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('mobile candidates scroll inside a fixed bottom-left panel', (
     tester,
   ) async {

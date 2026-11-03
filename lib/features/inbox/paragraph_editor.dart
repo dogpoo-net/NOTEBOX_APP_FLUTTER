@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'word_badge.dart';
@@ -30,6 +32,57 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
   final List<TextEditingController> _controllers = [];
   final List<ParagraphRole> _roles = [];
   final List<FocusNode> _focus = [];
+  final _scroll = ScrollController();
+  Timer? _keyboardScroll;
+  double _lastInset = 0;
+  Size? _lastSize;
+  double _expandedHeight = 0;
+  bool _keyboardResizedViewport = false;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final media = MediaQuery.of(context);
+    final inset = media.viewInsets.bottom;
+    final previous = _lastSize;
+    final shrank =
+        previous != null &&
+        media.size.width == previous.width &&
+        media.size.height < previous.height;
+    if (previous == null ||
+        previous.width != media.size.width ||
+        media.size.height > _expandedHeight) {
+      _expandedHeight = media.size.height;
+    }
+    if (previous != null) {
+      if (previous.width != media.size.width ||
+          media.size.height > previous.height) {
+        _keyboardResizedViewport = false;
+      } else if (_expandedHeight - media.size.height > 80 &&
+          _focus.any((f) => f.hasFocus)) {
+        _keyboardResizedViewport = true;
+      }
+    }
+    if ((inset > 0 && inset != _lastInset) ||
+        (shrank && _focus.any((f) => f.hasFocus))) {
+      _keyboardScroll?.cancel();
+      // Wait for the keyboard resize and EditableText's caret reveal to settle.
+      _keyboardScroll = Timer(const Duration(milliseconds: 280), () {
+        if (!mounted) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _scroll.hasClients) {
+            _scroll.jumpTo(_scroll.position.maxScrollExtent);
+          }
+        });
+        WidgetsBinding.instance.ensureVisualUpdate();
+      });
+    } else if ((inset == 0 && _lastInset > 0) ||
+        (previous != null && media.size.height > previous.height)) {
+      _keyboardScroll?.cancel();
+    }
+    _lastInset = inset;
+    _lastSize = media.size;
+  }
+
   int _active = 0;
   bool _dirty = false;
   static const _labels = ['제목', '부제', '본문'];
@@ -56,6 +109,8 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
 
   @override
   void dispose() {
+    _keyboardScroll?.cancel();
+    _scroll.dispose();
     for (final c in _controllers) {
       c.dispose();
     }
@@ -207,7 +262,17 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 900),
               child: ListView(
-                padding: const EdgeInsets.all(20),
+                key: const ValueKey('paragraph-scroll'),
+                controller: _scroll,
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  20,
+                  20,
+                  (MediaQuery.viewInsetsOf(context).bottom > 0 ||
+                          _keyboardResizedViewport)
+                      ? mobileAssistHeight(MediaQuery.of(context)) + 36
+                      : 20,
+                ),
                 children: [
                   for (var i = 0; i < _controllers.length; i++)
                     Padding(
