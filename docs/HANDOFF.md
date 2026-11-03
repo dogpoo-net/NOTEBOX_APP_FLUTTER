@@ -92,3 +92,5 @@ Flutter 공식 Material 패키지를 사용합니다. 인디고 기반 의미 �
 메뉴 DnD: 프로젝트/태그 payload 구분, 교차 드롭 차단, 폴더 및 미분류 drop target. 데스크톱 Draggable/모바일 LongPressDraggable, 드래그 중 가장자리 자동 스크롤. Stateful 메뉴가 모달에서도 이동 즉시 반영, root 콜백으로 영속화. v1 JSON optional hashtagFolders/hashtagFolderAssignments 추가, legacy 기본 빈 값, 초기화 포함.
 
 IME Ctrl 재수정: 논리키가 Process로 전달되는 경우에도 physical ControlLeft/ControlRight로 토글 인식. Chromium DOM compositionstart/update/input + key Process/code ControlLeft 이벤트로 한 번 토글 및 복귀 확인. 사용자 OS의 실제 IME 전체 조합을 자동 재현한 것은 아님.
+
+최신 저장 정책: JSON 파일 내보내기/가져오기 UI·코드 및 file_selector 의존성 제거. 브라우저 자동 저장과 초기화 유지. WorkspaceSnapshot JSON은 내부 저장 직렬화 용도로 유지하여 기존 저장 데이터 호환. 이전 백업/파일 복원 안내는 더 이상 적용되지 않음.

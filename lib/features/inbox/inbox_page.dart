@@ -4,10 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 
-import 'dart:convert';
-
-import 'package:file_selector/file_selector.dart';
-
 import 'workspace_storage.dart';
 import 'hashtags.dart';
 import 'tag_page.dart';
@@ -62,7 +58,7 @@ class _InboxPageState extends State<InboxPage> {
       }
     } catch (_) {
       _restoreBlocked = true;
-      _storageError = '저장 데이터를 읽지 못했습니다. 원본을 보존합니다. JSON 백업으로 복원해주세요.';
+      _storageError = '브라우저 저장 데이터를 읽지 못했습니다. 기존 데이터는 보존되며 새 저장은 중단됩니다.';
     }
   }
 
@@ -156,7 +152,9 @@ class _InboxPageState extends State<InboxPage> {
       await widget.storage!.write(WorkspaceSnapshot.encode(_notes));
     } catch (_) {
       if (mounted) {
-        setState(() => _storageError = '기기 저장 실패 · JSON 백업을 내려받아주세요.');
+        setState(
+          () => _storageError = '브라우저 저장에 실패했습니다. 브라우저의 사이트 저장 공간 설정을 확인해주세요.',
+        );
       }
     }
   }
@@ -166,9 +164,7 @@ class _InboxPageState extends State<InboxPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('모든 데이터를 초기화할까요?'),
-        content: const Text(
-          '원소·문단·프로젝트와 이 앱의 기기 저장본을 삭제합니다. 다운로드한 JSON 파일은 삭제되지 않습니다.',
-        ),
+        content: const Text('원소·문단·프로젝트·폴더와 이 브라우저에 저장된 앱 데이터를 삭제합니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -203,86 +199,6 @@ class _InboxPageState extends State<InboxPage> {
     } catch (_) {
       if (mounted) {
         setState(() => _storageError = '기기 데이터 삭제에 실패했습니다. 다시 시도해주세요.');
-      }
-    }
-  }
-
-  Future<void> _export() async {
-    try {
-      final data = WorkspaceSnapshot.encode(_notes);
-      final file = XFile.fromData(
-        Uint8List.fromList(utf8.encode(data)),
-        mimeType: 'application/json',
-        name: 'notebox-backup.json',
-      );
-      if (kIsWeb) {
-        await file.saveTo('notebox-backup.json');
-      } else {
-        final location = await getSaveLocation(
-          suggestedName: 'notebox-backup.json',
-        );
-        if (location != null) await file.saveTo(location.path);
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('백업 파일 저장에 실패했습니다.')));
-      }
-    }
-  }
-
-  Future<void> _import() async {
-    try {
-      final file = await openFile(
-        acceptedTypeGroups: [
-          const XTypeGroup(
-            label: 'JSON',
-            extensions: ['json'],
-            mimeTypes: ['application/json'],
-            uniformTypeIdentifiers: ['public.json'],
-          ),
-        ],
-      );
-      if (file == null || !mounted) return;
-      if (await file.length() > 10000000) {
-        throw const FormatException('Too large');
-      }
-      final snapshot = WorkspaceSnapshot.decode(await file.readAsString());
-      if (!mounted) return;
-      final yes = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('백업으로 복원할까요?'),
-          content: const Text('현재 데이터를 교체합니다. 기존 데이터는 먼저 JSON 백업으로 보관해주세요.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('복원'),
-            ),
-          ],
-        ),
-      );
-      if (yes != true || !mounted) return;
-      setState(() {
-        snapshot.apply();
-        _notes
-          ..clear()
-          ..addAll(snapshot.notes);
-        _editing = null;
-        _draft.clear();
-        _restoreBlocked = false;
-        _storageError = null;
-      });
-      await _persist();
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('백업 파일을 읽을 수 없습니다. 현재 데이터는 유지됩니다.')),
-        );
       }
     }
   }
@@ -826,22 +742,6 @@ class _InboxPageState extends State<InboxPage> {
                           spacing: 8,
                           children: [
                             TextButton.icon(
-                              onPressed: _export,
-                              icon: const Icon(
-                                Icons.download_outlined,
-                                size: 18,
-                              ),
-                              label: const Text('JSON 백업'),
-                            ),
-                            TextButton.icon(
-                              onPressed: _import,
-                              icon: const Icon(
-                                Icons.upload_file_outlined,
-                                size: 18,
-                              ),
-                              label: const Text('백업 복원'),
-                            ),
-                            TextButton.icon(
                               onPressed: _reset,
                               icon: const Icon(Icons.delete_outline, size: 18),
                               label: const Text('데이터 초기화'),
@@ -876,8 +776,8 @@ class _InboxPageState extends State<InboxPage> {
                         Text(
                           _storageError ??
                               (widget.storage == null
-                                  ? '기기 저장을 사용할 수 없습니다 · JSON 백업을 이용해주세요'
-                                  : '이 브라우저에 저장됨 · 다른 기기로 옮길 때 JSON 백업을 사용하세요'),
+                                  ? '브라우저 저장을 사용할 수 없습니다 · 현재 화면에서만 유지됩니다'
+                                  : '이 브라우저에 자동 저장됨'),
                           style: TextStyle(
                             color: colors.onSurfaceVariant,
                             fontSize: 12,
