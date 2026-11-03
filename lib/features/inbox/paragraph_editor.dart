@@ -51,11 +51,7 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
       }),
     );
     _roles.add(p.role);
-    _focus.add(
-      FocusNode()..addListener(() {
-        if (mounted) setState(() {});
-      }),
-    );
+    _focus.add(FocusNode());
   }
 
   @override
@@ -207,122 +203,112 @@ class _ParagraphEditorState extends State<ParagraphEditor> {
           ],
         ),
         body: SafeArea(
-          child: Padding(
-            padding: EdgeInsets.only(
-              bottom:
-                  (MediaQuery.sizeOf(context).width < 760 ||
-                          MediaQuery.viewInsetsOf(context).bottom > 0) &&
-                      _focus.any((f) => f.hasFocus)
-                  ? mobileAssistHeight(MediaQuery.of(context)) + 16
-                  : 0,
-            ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 900),
-                child: ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    for (var i = 0; i < _controllers.length; i++)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            ...[
-                              const SizedBox(height: 6),
-                              Align(
-                                alignment: AlignmentDirectional.centerStart,
-                                child: ToggleButtons(
-                                  direction: Axis.horizontal,
-                                  borderRadius: BorderRadius.circular(16),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 48,
-                                    minHeight: 28,
-                                  ),
-                                  textStyle: const TextStyle(fontSize: 11),
-                                  isSelected: ParagraphRole.values
-                                      .map((role) => role == _roles[i])
-                                      .toList(),
-                                  onPressed: (index) {
-                                    setState(() {
-                                      _roles[i] = ParagraphRole.values[index];
-                                      _active = i;
-                                      _dirty = true;
-                                    });
-                                    _focus[i].requestFocus();
-                                  },
-                                  children: _labels
-                                      .map(
-                                        (label) => Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                          ),
-                                          child: Text(label),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  for (var i = 0; i < _controllers.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ...[
+                            const SizedBox(height: 6),
+                            Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: ToggleButtons(
+                                direction: Axis.horizontal,
+                                borderRadius: BorderRadius.circular(16),
+                                constraints: const BoxConstraints(
+                                  minWidth: 48,
+                                  minHeight: 28,
+                                ),
+                                textStyle: const TextStyle(fontSize: 11),
+                                isSelected: ParagraphRole.values
+                                    .map((role) => role == _roles[i])
+                                    .toList(),
+                                onPressed: (index) {
+                                  setState(() {
+                                    _roles[i] = ParagraphRole.values[index];
+                                    _active = i;
+                                    _dirty = true;
+                                  });
+                                  _focus[i].requestFocus();
+                                },
+                                children: _labels
+                                    .map(
+                                      (label) => Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
                                         ),
-                                      )
-                                      .toList(),
-                                ),
-                              ),
-                            ],
-                            CaretAssist(
-                              controller: _controllers[i],
-                              focus: _focus[i],
-                              words: words,
-                              onWord: (word) {
-                                _active = i;
-                                _insert(word, complete: true);
-                              },
-                              child: TextField(
-                                key: ValueKey('paragraph-$i'),
-                                controller: _controllers[i],
-                                focusNode: _focus[i],
-                                minLines: 2,
-                                maxLines: null,
-                                onTap: () => setState(() => _active = i),
-                                onChanged: (_) => setState(() {
-                                  _active = i;
-                                  _dirty = true;
-                                }),
-                                style: TextStyle(
-                                  fontSize: _roles[i] == ParagraphRole.title
-                                      ? 28
-                                      : _roles[i] == ParagraphRole.subtitle
-                                      ? 21
-                                      : 16,
-                                  fontWeight: _roles[i] == ParagraphRole.body
-                                      ? FontWeight.normal
-                                      : FontWeight.w600,
-                                  height: 1.5,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: i == 0
-                                      ? '단어 하나로 시작해보세요'
-                                      : '다음 생각을 이어보세요',
-                                  labelText: '문단 ${i + 1}',
-                                ),
+                                        child: Text(label),
+                                      ),
+                                    )
+                                    .toList(),
                               ),
                             ),
                           ],
-                        ),
+                          CaretAssist(
+                            controller: _controllers[i],
+                            focus: _focus[i],
+                            words: words,
+                            onWord: (word) {
+                              _active = i;
+                              _insert(word, complete: true);
+                            },
+                            child: TextField(
+                              key: ValueKey('paragraph-$i'),
+                              controller: _controllers[i],
+                              focusNode: _focus[i],
+                              minLines: 2,
+                              maxLines: null,
+                              onTap: () => setState(() => _active = i),
+                              onChanged: (_) => setState(() {
+                                _active = i;
+                                _dirty = true;
+                              }),
+                              style: TextStyle(
+                                fontSize: _roles[i] == ParagraphRole.title
+                                    ? 28
+                                    : _roles[i] == ParagraphRole.subtitle
+                                    ? 21
+                                    : 16,
+                                fontWeight: _roles[i] == ParagraphRole.body
+                                    ? FontWeight.normal
+                                    : FontWeight.w600,
+                                height: 1.5,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: i == 0
+                                    ? '단어 하나로 시작해보세요'
+                                    : '다음 생각을 이어보세요',
+                                labelText: '문단 ${i + 1}',
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _add(const Paragraph('', ParagraphRole.body));
-                          _active = _controllers.length - 1;
-                        });
-                        _focus.last.requestFocus();
-                      },
-                      icon: const Icon(Icons.add),
-                      label: const Text('다음 문단'),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '저장을 누르면 문단이 보관됩니다.',
-                      style: TextStyle(color: colors.onSurfaceVariant),
-                    ),
-                  ],
-                ),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _add(const Paragraph('', ParagraphRole.body));
+                        _active = _controllers.length - 1;
+                      });
+                      _focus.last.requestFocus();
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('다음 문단'),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '저장을 누르면 문단이 보관됩니다.',
+                    style: TextStyle(color: colors.onSurfaceVariant),
+                  ),
+                ],
               ),
             ),
           ),

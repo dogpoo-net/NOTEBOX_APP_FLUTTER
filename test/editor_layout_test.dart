@@ -122,7 +122,7 @@ void main() {
     );
     expect(
       tester.getBottomRight(find.byType(ListView).first).dy,
-      lessThanOrEqualTo(popupBefore.top),
+      closeTo(544, 1),
     );
     expect(tester.takeException(), isNull);
   });

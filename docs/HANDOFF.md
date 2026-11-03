@@ -94,3 +94,5 @@ Flutter 공식 Material 패키지를 사용합니다. 인디고 기반 의미 �
 IME Ctrl 재수정: 논리키가 Process로 전달되는 경우에도 physical ControlLeft/ControlRight로 토글 인식. Chromium DOM compositionstart/update/input + key Process/code ControlLeft 이벤트로 한 번 토글 및 복귀 확인. 사용자 OS의 실제 IME 전체 조합을 자동 재현한 것은 아님.
 
 최신 저장 정책: JSON 파일 내보내기/가져오기 UI·코드 및 file_selector 의존성 제거. 브라우저 자동 저장과 초기화 유지. WorkspaceSnapshot JSON은 내부 저장 직렬화 용도로 유지하여 기존 저장 데이터 호환. 이전 백업/파일 복원 안내는 더 이상 적용되지 않음.
+
+문단 편집 화면: 어시스트를 위해 추가했던 동적 하단 Padding 제거. Scaffold 기본 키보드 resize만 사용하며 편집 ListView는 키보드 위까지 전체 높이를 사용. 모바일 어시스트 overlay 위치는 유지.
